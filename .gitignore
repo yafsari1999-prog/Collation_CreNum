@@ -1,0 +1,29 @@
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Dossiers IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environnements virtuels Python
+venv/
+env/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Node modules
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Fichiers temporaires
+*.tmp
+*.log
