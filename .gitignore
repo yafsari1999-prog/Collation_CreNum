@@ -11,6 +11,7 @@ Thumbs.db
 
 # Environnements virtuels Python
 venv/
+.venv/
 env/
 ENV/
 __pycache__/

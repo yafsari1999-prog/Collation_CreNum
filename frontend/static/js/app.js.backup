@@ -1,0 +1,1325 @@
+// JavaScript pour l'interface de collation
+
+// État global de l'application
+let appState = {
+    selectedWork: null,
+    selectedWitnesses: [null, null, null],
+    selectedChapter: null,
+    works: [],
+    witnesses: []
+};
+
+// Initialisation au chargement de la page
+document.addEventListener('DOMContentLoaded', function() {
+    loadWorks();
+    setupEventListeners();
+});
+
+/**
+ * Configure les écouteurs d'événements
+ */
+function setupEventListeners() {
+    console.log('Configuration des événements...');
+    
+    // La sélection de l'œuvre sera gérée dynamiquement lors de la création des radio buttons
+    // La sélection des témoins sera gérée dynamiquement lors de la création des checkboxes
+    
+    // Sélection du chapitre
+    const chapterSelect = document.getElementById('chapter-select');
+    if (chapterSelect) {
+        chapterSelect.addEventListener('change', onChapterSelected);
+        console.log('✓ Event listener attaché au sélecteur de chapitre');
+    }
+    
+    // Boutons des modals - on attend qu'ils existent dans le DOM
+    // Bouton ajouter œuvre
+    const addWorkBtn = document.getElementById('addWorkBtn');
+    console.log('Bouton addWorkBtn trouvé:', addWorkBtn);
+    if (addWorkBtn) {
+        addWorkBtn.addEventListener('click', function(e) {
+            console.log('Bouton Ajouter œuvre cliqué');
+            e.preventDefault();
+            addWork();
+        });
+        console.log('✓ Event listener attaché au bouton Ajouter œuvre');
+    } else {
+        console.error('✗ Bouton addWorkBtn NON TROUVÉ');
+    }
+    
+    // Bouton ajouter témoin  
+    const addWitnessBtn = document.getElementById('addWitnessBtn');
+    console.log('Bouton addWitnessBtn trouvé:', addWitnessBtn);
+    if (addWitnessBtn) {
+        addWitnessBtn.addEventListener('click', function(e) {
+            console.log('Bouton Ajouter témoin cliqué');
+            e.preventDefault();
+            addWitness();
+        });
+        console.log('✓ Event listener attaché au bouton Ajouter témoin');
+    } else {
+        console.error('✗ Bouton addWitnessBtn NON TROUVÉ');
+    }
+    
+    // Bouton lancer collation
+    const collateBtn = document.getElementById('btn-collate');
+    console.log('Bouton btn-collate trouvé:', collateBtn);
+    if (collateBtn) {
+        collateBtn.addEventListener('click', function(e) {
+            console.log('Bouton Lancer collation cliqué');
+            e.preventDefault();
+            launchCollation();
+        });
+        console.log('✓ Event listener attaché au bouton Lancer collation');
+    } else {
+        console.error('✗ Bouton btn-collate NON TROUVÉ');
+    }
+    
+    console.log('Configuration des événements terminée');
+}
+
+/**
+ * Charge la liste des œuvres
+ */
+async function loadWorks() {
+    try {
+        const response = await fetch('/api/works');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            appState.works = data.works;
+            updateWorksSelect();
+        }
+    } catch (error) {
+        console.error('Erreur lors du chargement des œuvres:', error);
+        alert('Erreur de connexion au serveur');
+    }
+}
+
+/**
+ * Met à jour la liste des œuvres avec des radio buttons
+ */
+function updateWorksSelect() {
+    const worksList = document.getElementById('works-list');
+    
+    if (appState.works.length === 0) {
+        worksList.innerHTML = '<p class="text-muted text-center my-3">Aucune œuvre enregistrée. Cliquez sur "Ajouter" ci-dessous.</p>';
+        return;
+    }
+    
+    // Trier les œuvres par ordre alphabétique
+    const sortedWorks = [...appState.works].sort((a, b) => 
+        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    );
+    
+    worksList.innerHTML = '';
+    
+    sortedWorks.forEach((work, index) => {
+        const div = document.createElement('div');
+        div.className = 'form-check';
+        
+        const leftDiv = document.createElement('div');
+        
+        const input = document.createElement('input');
+        input.className = 'form-check-input';
+        input.type = 'radio';
+        input.name = 'work-radio';
+        input.value = work.id;
+        input.id = `work-${work.id}`;
+        input.addEventListener('change', () => onWorkSelected(work.id));
+        
+        const label = document.createElement('label');
+        label.className = 'form-check-label';
+        label.htmlFor = `work-${work.id}`;
+        
+        let labelText = work.name;
+        if (work.author) {
+            labelText += ` <small class="text-muted">(${work.author})</small>`;
+        }
+        if (work.date) {
+            labelText += ` <small class="text-muted">[${work.date}]</small>`;
+        }
+        label.innerHTML = labelText;
+        
+        leftDiv.appendChild(input);
+        leftDiv.appendChild(label);
+        
+        // Boutons d'action
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'work-actions';
+        
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-sm btn-outline-primary me-1';
+        editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+        editBtn.title = 'Modifier';
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            openEditWorkModal(work);
+        };
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-sm btn-outline-danger';
+        deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+        deleteBtn.title = 'Supprimer';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            confirmDeleteWork(work);
+        };
+        
+        actionsDiv.appendChild(editBtn);
+        actionsDiv.appendChild(deleteBtn);
+        
+        div.appendChild(leftDiv);
+        div.appendChild(actionsDiv);
+        worksList.appendChild(div);
+    });
+    
+    // Sélectionner automatiquement la première œuvre
+    if (sortedWorks.length > 0 && !appState.selectedWork) {
+        const firstWork = sortedWorks[0];
+        const firstInput = document.getElementById(`work-${firstWork.id}`);
+        if (firstInput) {
+            firstInput.checked = true;
+            onWorkSelected(firstWork.id);
+        }
+    }
+}
+
+/**
+ * Gère la sélection d'une œuvre
+ */
+async function onWorkSelected(workId) {
+    console.log('onWorkSelected appelé avec workId:', workId);
+    
+    if (!workId) {
+        // Désactiver les sections suivantes
+        appState.selectedWork = null;
+        disableWitnessesSection();
+        disableChapterSection();
+        return;
+    }
+    
+    appState.selectedWork = workId;
+    console.log('Œuvre sélectionnée:', workId);
+    
+    // Réinitialiser les témoins sélectionnés quand on change d'œuvre
+    appState.selectedWitnesses = [null, null, null];
+    console.log('Témoins réinitialisés');
+    
+    // Charger les témoins de cette œuvre
+    await loadWitnesses(workId);
+    
+    // Activer la section témoins
+    console.log('Activation de la section témoins');
+    enableWitnessesSection();
+    
+    // NE PAS désactiver la section chapitres ici
+    // Elle sera activée/désactivée par updateWitnessesSelects() selon le nombre de témoins
+}
+
+/**
+ * Charge les témoins d'une œuvre
+ */
+async function loadWitnesses(workId) {
+    console.log('loadWitnesses appelé pour workId:', workId);
+    try {
+        const response = await fetch(`/api/works/${workId}/witnesses`);
+        const data = await response.json();
+        
+        console.log('Réponse API témoins:', data);
+        
+        if (data.status === 'success') {
+            appState.witnesses = data.witnesses;
+            console.log('Témoins chargés:', appState.witnesses);
+            await updateWitnessesSelects();
+        }
+    } catch (error) {
+        console.error('Erreur lors du chargement des témoins:', error);
+    }
+}
+
+/**
+ * Met à jour la liste des témoins avec des checkboxes
+ */
+async function updateWitnessesSelects() {
+    const witnessesList = document.getElementById('witnesses-list');
+    
+    if (appState.witnesses.length === 0) {
+        witnessesList.innerHTML = '<p class="text-muted text-center my-3">Aucun témoin disponible. Cliquez sur "Ajouter" ci-dessous.</p>';
+        return;
+    }
+    
+    // Trier les témoins par ordre alphabétique
+    const sortedWitnesses = [...appState.witnesses].sort((a, b) => 
+        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    );
+    
+    witnessesList.innerHTML = '';
+    
+    sortedWitnesses.forEach((witness, index) => {
+        const div = document.createElement('div');
+        div.className = 'form-check';
+        
+        const leftDiv = document.createElement('div');
+        
+        const input = document.createElement('input');
+        input.className = 'form-check-input';
+        input.type = 'checkbox';
+        input.name = 'witness-checkbox';
+        input.value = witness.id;
+        input.id = `witness-${witness.id}`;
+        
+        // Vérifier si ce témoin est déjà sélectionné
+        if (appState.selectedWitnesses.includes(witness.id)) {
+            input.checked = true;
+        }
+        
+        input.addEventListener('change', (e) => onWitnessCheckboxChanged(e, witness.id));
+        
+        const label = document.createElement('label');
+        label.className = 'form-check-label';
+        label.htmlFor = `witness-${witness.id}`;
+        label.textContent = witness.name;
+        
+        leftDiv.appendChild(input);
+        leftDiv.appendChild(label);
+        
+        // Boutons d'action
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'witness-actions';
+        
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-sm btn-outline-primary me-1';
+        editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+        editBtn.title = 'Modifier';
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            openEditWitnessModal(witness);
+        };
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-sm btn-outline-danger';
+        deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+        deleteBtn.title = 'Supprimer';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            confirmDeleteWitness(witness);
+        };
+        
+        actionsDiv.appendChild(editBtn);
+        actionsDiv.appendChild(deleteBtn);
+        
+        div.appendChild(leftDiv);
+        div.appendChild(actionsDiv);
+        witnessesList.appendChild(div);
+    });
+    
+    // Cocher automatiquement les 3 premiers témoins si aucun n'est sélectionné
+    const selectedCount = appState.selectedWitnesses.filter(w => w !== null).length;
+    console.log('Nombre de témoins déjà sélectionnés:', selectedCount);
+    
+    if (selectedCount === 0 && sortedWitnesses.length > 0) {
+        const witnessesToSelect = sortedWitnesses.slice(0, Math.min(3, sortedWitnesses.length));
+        
+        witnessesToSelect.forEach((witness, idx) => {
+            appState.selectedWitnesses[idx] = witness.id;
+            const checkbox = document.getElementById(`witness-${witness.id}`);
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        });
+        
+        console.log('Témoins sélectionnés par défaut:', appState.selectedWitnesses);
+    }
+    
+    // Vérifier si on a exactement 3 témoins sélectionnés pour activer la section chapitres
+    const finalSelectedCount = appState.selectedWitnesses.filter(w => w !== null).length;
+    console.log('Nombre final de témoins sélectionnés:', finalSelectedCount);
+    
+    if (finalSelectedCount === 3) {
+        console.log('3 témoins cochés, chargement des chapitres...');
+        await loadChapters();
+        enableChapterSection();
+        console.log('Étape 3 activée');
+    } else {
+        console.log('Moins de 3 témoins, désactivation de l’étape 3');
+        disableChapterSection();
+    }
+}
+
+/**
+ * Active la section témoins
+ */
+function enableWitnessesSection() {
+    document.querySelector('#witnesses-section > p').style.display = 'none';
+    document.getElementById('witness-selection').style.display = 'block';
+}
+
+/**
+ * Désactive la section témoins
+ */
+function disableWitnessesSection() {
+    document.querySelector('#witnesses-section > p').style.display = 'block';
+    document.getElementById('witness-selection').style.display = 'none';
+    
+    // Réinitialiser les sélections
+    appState.selectedWitnesses = [null, null, null];
+    
+    // Décocher toutes les checkboxes
+    document.querySelectorAll('input[name="witness-checkbox"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+}
+
+/**
+ * Gère le changement d'état d'une checkbox de témoin
+ */
+function onWitnessCheckboxChanged(event, witnessId) {
+    const checkbox = event.target;
+    
+    if (checkbox.checked) {
+        // Vérifier si on n'a pas déjà 3 témoins sélectionnés
+        const selectedCount = appState.selectedWitnesses.filter(w => w !== null).length;
+        
+        if (selectedCount >= 3) {
+            checkbox.checked = false;
+            alert('Vous ne pouvez sélectionner que 3 témoins maximum');
+            return;
+        }
+        
+        // Ajouter le témoin à la première position libre
+        for (let i = 0; i < 3; i++) {
+            if (appState.selectedWitnesses[i] === null) {
+                appState.selectedWitnesses[i] = witnessId;
+                break;
+            }
+        }
+    } else {
+        // Retirer le témoin et compacter le tableau
+        const index = appState.selectedWitnesses.indexOf(witnessId);
+        if (index !== -1) {
+            appState.selectedWitnesses.splice(index, 1);
+            appState.selectedWitnesses.push(null);
+        }
+    }
+    
+    console.log('Témoins sélectionnés:', appState.selectedWitnesses);
+    
+    // Vérifier si 3 témoins sont sélectionnés
+    const allSelected = appState.selectedWitnesses.filter(w => w !== null).length === 3;
+    
+    if (allSelected) {
+        // Charger les chapitres
+        loadChapters();
+        enableChapterSection();
+    } else {
+        disableChapterSection();
+    }
+}
+
+/**
+ * Charge les chapitres
+ */
+async function loadChapters() {
+    if (!appState.selectedWork) return;
+    
+    try {
+        const response = await fetch(`/api/works/${appState.selectedWork}/chapters`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const select = document.getElementById('chapter-select');
+            select.innerHTML = '<option value="">-- Sélectionnez un chapitre --</option>';
+            
+            data.chapters.forEach(chapter => {
+                const option = document.createElement('option');
+                option.value = chapter.index.toString();
+                option.textContent = chapter.label;
+                select.appendChild(option);
+            });
+            
+            // Sélectionner automatiquement le chapitre 1 (index 0)
+            if (data.chapters.length > 0) {
+                const defaultValue = data.chapters[0].index.toString();
+                select.value = defaultValue;
+                appState.selectedChapter = defaultValue;
+                console.log('Chapitre 1 sélectionné par défaut:', data.chapters[0].label);
+            }
+        }
+    } catch (error) {
+        console.error('Erreur lors du chargement des chapitres:', error);
+    }
+}
+
+/**
+ * Active la section chapitres
+ */
+function enableChapterSection() {
+    console.log('enableChapterSection appelé');
+    const messageP = document.querySelector('#chapter-section > p');
+    const chapterSelection = document.getElementById('chapter-selection');
+    
+    if (messageP) {
+        messageP.style.display = 'none';
+    }
+    if (chapterSelection) {
+        chapterSelection.style.display = 'block';
+    }
+    console.log('Section chapitres activée - visible:', chapterSelection ? chapterSelection.style.display : 'n/a');
+}
+
+/**
+ * Désactive la section chapitres
+ */
+function disableChapterSection() {
+    document.querySelector('#chapter-section > p').style.display = 'block';
+    document.getElementById('chapter-selection').style.display = 'none';
+    document.getElementById('chapter-select').value = '';
+    appState.selectedChapter = null;
+}
+
+/**
+ * Gère la sélection d'un chapitre
+ */
+function onChapterSelected(event) {
+    appState.selectedChapter = event.target.value || null;
+}
+
+/**
+ * Ajoute une nouvelle œuvre
+ */
+async function addWork() {
+    console.log('Fonction addWork() appelée');
+    
+    const nameInput = document.getElementById('work-name');
+    const authorInput = document.getElementById('work-author');
+    const dateInput = document.getElementById('work-date');
+    
+    console.log('Éléments trouvés:', { nameInput, authorInput, dateInput });
+    
+    if (!nameInput) {
+        console.error('Élément work-name introuvable');
+        alert('Erreur: formulaire introuvable');
+        return;
+    }
+    
+    const name = nameInput.value.trim();
+    const author = authorInput.value.trim();
+    const date = dateInput.value.trim();
+    
+    console.log('Valeurs:', { name, author, date });
+    
+    if (!name) {
+        alert('Veuillez saisir le nom de l\'œuvre');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/works', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, author: author || null, date: date || null })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Fermer le modal
+            bootstrap.Modal.getInstance(document.getElementById('addWorkModal')).hide();
+            
+            // Réinitialiser le formulaire
+            document.getElementById('add-work-form').reset();
+            
+            // Recharger les œuvres
+            await loadWorks();
+            
+            // Sélectionner automatiquement la nouvelle œuvre
+            const radio = document.getElementById(`work-${data.work.id}`);
+            if (radio) {
+                radio.checked = true;
+                onWorkSelected(data.work.id);
+            }
+        } else {
+            alert('Erreur: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur de connexion au serveur');
+    }
+}
+
+/**
+ * Ouvre le modal d'ajout de témoin
+ */
+function openAddWitnessModal() {
+    if (!appState.selectedWork) {
+        alert('Veuillez d\'abord sélectionner une œuvre');
+        return;
+    }
+    
+    // Réinitialiser le formulaire
+    document.getElementById('add-witness-form').reset();
+    document.getElementById('witness-name').value = '';
+    
+    new bootstrap.Modal(document.getElementById('addWitnessModal')).show();
+}
+
+/**
+ * Met à jour le nom du témoin depuis le nom du fichier
+ */
+function updateWitnessNameFromFile() {
+    const fileInput = document.getElementById('witness-file');
+    const nameInput = document.getElementById('witness-name');
+    
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        // Extraire le nom sans l'extension .json
+        let fileName = file.name;
+        if (fileName.endsWith('.json')) {
+            fileName = fileName.slice(0, -5);
+        }
+        
+        // Remplacer les underscores et tirets par des espaces
+        fileName = fileName.replace(/[_-]/g, ' ');
+        
+        // Capitaliser les mots
+        fileName = fileName.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+        
+        nameInput.value = fileName;
+        console.log('Nom du témoin pré-rempli:', fileName);
+    }
+}
+
+/**
+ * Ajoute un nouveau témoin
+ */
+async function addWitness() {
+    const name = document.getElementById('witness-name').value.trim();
+    const fileInput = document.getElementById('witness-file');
+    const file = fileInput.files[0];
+    
+    if (!name || !file) {
+        alert('Le nom et le fichier sont obligatoires');
+        return;
+    }
+    
+    if (!appState.selectedWork) {
+        alert('Aucune œuvre sélectionnée');
+        return;
+    }
+    
+    // Créer un FormData pour l'upload
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('file', file);
+    
+    try {
+        const response = await fetch(`/api/works/${appState.selectedWork}/witnesses`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Fermer le modal
+            bootstrap.Modal.getInstance(document.getElementById('addWitnessModal')).hide();
+            
+            // Réinitialiser le formulaire
+            document.getElementById('add-witness-form').reset();
+            
+            // Recharger les témoins
+            await loadWitnesses(appState.selectedWork);
+            
+            // Sélectionner automatiquement le nouveau témoin si < 3 sont sélectionnés
+            const selectedCount = appState.selectedWitnesses.filter(w => w !== null).length;
+            if (selectedCount < 3) {
+                const checkbox = document.getElementById(`witness-${data.witness.id}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                    onWitnessCheckboxChanged({ target: checkbox }, data.witness.id);
+                }
+            }
+        } else {
+            alert('Erreur: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur de connexion au serveur');
+    }
+}
+
+// État de la collation
+const collationState = {
+    results: null,
+    currentPage: 1,
+    versesPerPage: 20,
+    pendingDecisions: {},
+    totalDecisions: 0
+};
+
+/**
+ * Lance la collation
+ */
+async function launchCollation() {
+    if (!appState.selectedWork || !appState.selectedChapter) {
+        alert('Veuillez sélectionner une œuvre, des témoins et un chapitre');
+        return;
+    }
+    
+    const allWitnessesSelected = appState.selectedWitnesses.every(w => w !== null);
+    if (!allWitnessesSelected) {
+        alert('Veuillez sélectionner 3 témoins');
+        return;
+    }
+    
+    // Afficher la section résultats
+    const resultsSection = document.getElementById('results-section');
+    const collationLoading = document.getElementById('collation-loading');
+    const collationTable = document.getElementById('collation-table');
+    const noResults = document.getElementById('no-results');
+    const collationFooter = document.getElementById('collation-footer');
+    
+    resultsSection.style.display = 'block';
+    collationLoading.style.display = 'block';
+    collationTable.style.display = 'none';
+    noResults.style.display = 'none';
+    collationFooter.style.display = 'none';
+    
+    try {
+        const response = await fetch('/api/collate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                work_id: appState.selectedWork,
+                witness_ids: appState.selectedWitnesses,
+                chapter_index: parseInt(appState.selectedChapter)
+            })
+        });
+        
+        // Vérifier le statut HTTP
+        if (!response.ok) {
+            let errorMessage = `Erreur HTTP ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+                // Si le JSON parsing échoue, utiliser le message par défaut
+            }
+            console.error('Erreur HTTP:', response.status, errorMessage);
+            collationLoading.style.display = 'none';
+            noResults.innerHTML = `<div class="alert alert-danger">${errorMessage}</div>`;
+            noResults.style.display = 'block';
+            return;
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            collationState.results = data.data;
+            collationState.currentPage = 1;
+            collationState.pendingDecisions = {};
+            
+            // Compter les décisions existantes
+            collationState.totalDecisions = collationState.results.verses.filter(
+                v => v.user_decision !== null && v.user_decision !== undefined
+            ).length;
+            
+            // Afficher les en-têtes des témoins
+            document.getElementById('witness-header-1').textContent = collationState.results.witnesses[0];
+            document.getElementById('witness-header-2').textContent = collationState.results.witnesses[1];
+            document.getElementById('witness-header-3').textContent = collationState.results.witnesses[2];
+            
+            // Afficher les résultats
+            displayCollationResults();
+            
+            collationLoading.style.display = 'none';
+            collationTable.style.display = 'block';
+            collationFooter.style.display = 'block';
+        } else {
+            collationLoading.style.display = 'none';
+            noResults.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+            noResults.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Erreur de collation:', error);
+        collationLoading.style.display = 'none';
+        
+        let errorMessage = 'Erreur de connexion au serveur';
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+            errorMessage = 'Impossible de se connecter au serveur. Vérifiez que le serveur Flask est en cours d\'exécution sur le port 5001.';
+        } else if (error.name === 'SyntaxError') {
+            errorMessage = 'Erreur de format de réponse du serveur';
+        }
+        
+        noResults.innerHTML = `<div class="alert alert-danger">${errorMessage}<br><small class="text-muted">Voir la console (F12) pour plus de détails</small></div>`;
+        noResults.style.display = 'block';
+    }
+}
+
+/**
+ * Affiche les résultats de collation avec pagination
+ */
+function displayCollationResults() {
+    const container = document.getElementById('verses-container');
+    container.innerHTML = '';
+    
+    const totalVerses = collationState.results.verses.length;
+    const totalPages = Math.ceil(totalVerses / collationState.versesPerPage);
+    const startIdx = (collationState.currentPage - 1) * collationState.versesPerPage;
+    const endIdx = Math.min(startIdx + collationState.versesPerPage, totalVerses);
+    
+    // Mettre à jour les badges
+    document.getElementById('verse-range-badge').textContent = `Vers ${startIdx + 1}-${endIdx}`;
+    document.getElementById('total-verses-badge').textContent = `${totalVerses} vers`;
+    document.getElementById('decisions-badge').textContent = `${collationState.totalDecisions} enregistrements`;
+    
+    // Mettre à jour la pagination
+    document.getElementById('current-page').textContent = collationState.currentPage;
+    document.getElementById('total-pages').textContent = totalPages;
+    document.getElementById('prev-page-btn').disabled = collationState.currentPage === 1;
+    document.getElementById('next-page-btn').disabled = collationState.currentPage === totalPages;
+    
+    // Afficher les vers de la page courante
+    for (let i = startIdx; i < endIdx; i++) {
+        const verse = collationState.results.verses[i];
+        const verseRow = createVerseRow(verse);
+        container.appendChild(verseRow);
+    }
+}
+
+/**
+ * Crée une ligne de vers dans la grille
+ */
+function createVerseRow(verse) {
+    const row = document.createElement('div');
+    row.className = 'verse-row';
+    row.id = `verse-row-${verse.verse_number}`;
+    
+    // Appliquer les classes selon le statut
+    if (verse.user_decision) {
+        row.classList.add('has-decision');
+    } else if (verse.has_variants) {
+        row.classList.add('has-variants');
+    }
+    
+    // Numéro du vers
+    const numCell = document.createElement('div');
+    numCell.className = 'verse-number-cell';
+    numCell.textContent = verse.verse_number;
+    row.appendChild(numCell);
+    
+    // Les 3 témoins
+    verse.witnesses.forEach((witness, idx) => {
+        const cell = document.createElement('div');
+        cell.className = 'witness-cell';
+        
+        if (witness.missing) {
+            cell.classList.add('missing');
+            cell.textContent = '— absent —';
+        } else {
+            cell.textContent = witness.text;
+            
+            // Ajouter métadonnées si disponibles
+            if (witness.metadata && witness.metadata.page) {
+                const meta = document.createElement('div');
+                meta.className = 'metadata';
+                meta.textContent = `Page ${witness.metadata.page}`;
+                cell.appendChild(meta);
+            }
+        }
+        
+        row.appendChild(cell);
+    });
+    
+    // Actions
+    const actionsCell = document.createElement('div');
+    actionsCell.className = 'actions-cell';
+    
+    const qualifyBtn = document.createElement('button');
+    qualifyBtn.className = verse.user_decision ? 'btn btn-sm btn-success' : 'btn btn-sm btn-outline-primary';
+    qualifyBtn.innerHTML = verse.user_decision ? '<i class="bi bi-check-circle-fill"></i> Qualifié' : '<i class="bi bi-pencil"></i> Qualifier';
+    qualifyBtn.onclick = () => openQualifyModal(verse);
+    
+    actionsCell.appendChild(qualifyBtn);
+    row.appendChild(actionsCell);
+    
+    return row;
+}
+
+/**
+ * Page précédente
+ */
+function previousPage() {
+    if (collationState.currentPage > 1) {
+        collationState.currentPage--;
+        displayCollationResults();
+        // Scroll vers le haut
+        document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+/**
+ * Page suivante
+ */
+function nextPage() {
+    const totalPages = Math.ceil(collationState.results.verses.length / collationState.versesPerPage);
+    if (collationState.currentPage < totalPages) {
+        collationState.currentPage++;
+        displayCollationResults();
+        // Scroll vers le haut
+        document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+/**
+ * Ouvre la modal d'édition d'une œuvre
+ */
+function openEditWorkModal(work) {
+    document.getElementById('edit-work-id').value = work.id;
+    document.getElementById('edit-work-name').value = work.name;
+    document.getElementById('edit-work-author').value = work.author || '';
+    document.getElementById('edit-work-date').value = work.date || '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('editWorkModal'));
+    modal.show();
+}
+
+/**
+ * Met à jour une œuvre
+ */
+async function updateWork() {
+    const workId = document.getElementById('edit-work-id').value;
+    const name = document.getElementById('edit-work-name').value.trim();
+    const author = document.getElementById('edit-work-author').value.trim();
+    const date = document.getElementById('edit-work-date').value.trim();
+    
+    if (!name) {
+        alert('Le nom de l\'œuvre est obligatoire');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/works/${workId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                name: name,
+                author: author || null,
+                date: date || null
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Fermer la modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editWorkModal'));
+            modal.hide();
+            
+            // Recharger les œuvres
+            await loadWorks();
+            
+            // Si c'était l'œuvre sélectionnée, recharger ses témoins
+            if (appState.selectedWork === workId) {
+                await loadWitnesses(workId);
+            }
+        } else {
+            alert('Erreur : ' + data.message);
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur de connexion au serveur');
+    }
+}
+
+/**
+ * Ouvre la modal de confirmation de suppression
+ */
+function confirmDeleteWork(work) {
+    document.getElementById('delete-work-id').value = work.id;
+    document.getElementById('delete-work-witness-count').textContent = work.witnesses.length;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteWorkModal'));
+    modal.show();
+}
+
+/**
+ * Supprime une œuvre
+ */
+async function deleteWork() {
+    const workId = document.getElementById('delete-work-id').value;
+    
+    try {
+        const response = await fetch(`/api/works/${workId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Fermer la modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteWorkModal'));
+            modal.hide();
+            
+            // Si c'était l'œuvre sélectionnée, réinitialiser l'état
+            if (appState.selectedWork === workId) {
+                appState.selectedWork = null;
+                appState.selectedWitnesses = [null, null, null];
+                appState.selectedChapter = null;
+                disableWitnessesSection();
+                disableChapterSection();
+            }
+            
+            // Recharger les œuvres
+            await loadWorks();
+        } else {
+            alert('Erreur : ' + data.message);
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur de connexion au serveur');
+    }
+}
+
+/**
+ * Ouvre la modal d'édition d'un témoin
+ */
+function openEditWitnessModal(witness) {
+    document.getElementById('edit-witness-work-id').value = appState.selectedWork;
+    document.getElementById('edit-witness-id').value = witness.id;
+    document.getElementById('edit-witness-name').value = witness.name;
+    
+    const modal = new bootstrap.Modal(document.getElementById('editWitnessModal'));
+    modal.show();
+}
+
+/**
+ * Met à jour un témoin
+ */
+async function updateWitness() {
+    const workId = document.getElementById('edit-witness-work-id').value;
+    const witnessId = document.getElementById('edit-witness-id').value;
+    const name = document.getElementById('edit-witness-name').value.trim();
+    
+    if (!name) {
+        alert('Le nom du témoin est obligatoire');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/works/${workId}/witnesses/${witnessId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Fermer la modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editWitnessModal'));
+            modal.hide();
+            
+            // Recharger les témoins
+            await loadWitnesses(workId);
+        } else {
+            alert('Erreur : ' + data.message);
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur de connexion au serveur');
+    }
+}
+
+/**
+ * Ouvre la modal de confirmation de suppression d'un témoin
+ */
+function confirmDeleteWitness(witness) {
+    document.getElementById('delete-witness-work-id').value = appState.selectedWork;
+    document.getElementById('delete-witness-id').value = witness.id;
+    document.getElementById('delete-witness-name').textContent = witness.name;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteWitnessModal'));
+    modal.show();
+}
+
+/**
+ * Supprime un témoin
+ */
+async function deleteWitness() {
+    const workId = document.getElementById('delete-witness-work-id').value;
+    const witnessId = document.getElementById('delete-witness-id').value;
+    
+    try {
+        const response = await fetch(`/api/works/${workId}/witnesses/${witnessId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Fermer la modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteWitnessModal'));
+            modal.hide();
+            
+            // Supprimer le témoin de l'état si il était sélectionné
+            const index = appState.selectedWitnesses.indexOf(witnessId);
+            if (index !== -1) {
+                appState.selectedWitnesses[index] = null;
+            }
+            
+            // Recharger les témoins
+            await loadWitnesses(workId);
+            
+            // Si on a moins de 3 témoins sélectionnés, désactiver la section chapitres
+            const selectedCount = appState.selectedWitnesses.filter(w => w !== null).length;
+            if (selectedCount < 3) {
+                disableChapterSection();
+            }
+        } else {
+            alert('Erreur : ' + data.message);
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur de connexion au serveur');
+    }
+}
+
+/**
+ * Ouvre la modal de qualification d'un vers
+ */
+function openQualifyModal(verse) {
+    document.getElementById('qualify-verse-number').textContent = verse.verse_number;
+    document.getElementById('qualify-verse-number-input').value = verse.verse_number;
+    
+    // Remplir les noms des témoins
+    document.getElementById('qualify-witness-1-name').textContent = collationState.results.witnesses[0];
+    document.getElementById('qualify-witness-2-name').textContent = collationState.results.witnesses[1];
+    document.getElementById('qualify-witness-3-name').textContent = collationState.results.witnesses[2];
+    
+    // Remplir les textes
+    verse.witnesses.forEach((wit, idx) => {
+        const textEl = document.getElementById(`qualify-witness-${idx + 1}-text`);
+        textEl.textContent = wit.missing ? '— absent —' : wit.text;
+    });
+    
+    // Mettre à jour les labels d'équivalence
+    document.getElementById('equiv-1-2-label').textContent = collationState.results.witnesses[0] + " = " + collationState.results.witnesses[1];
+    document.getElementById('equiv-1-3-label').textContent = collationState.results.witnesses[0] + " = " + collationState.results.witnesses[2];
+    document.getElementById('equiv-2-3-label').textContent = collationState.results.witnesses[1] + " = " + collationState.results.witnesses[2];
+    
+    // Charger la décision existante si elle existe
+    const decision = verse.user_decision || collationState.pendingDecisions[verse.verse_number];
+    
+    if (decision) {
+        document.getElementById('qualification-type').value = decision.qualification || '';
+        document.getElementById('qualification-notes').value = decision.notes || '';
+        document.getElementById('selected-reading').value = decision.selected_reading !== undefined ? decision.selected_reading : '';
+        
+        // Charger les équivalences
+        document.getElementById('equiv-1-2').checked = decision.equivalences?.includes('0-1') || false;
+        document.getElementById('equiv-1-3').checked = decision.equivalences?.includes('0-2') || false;
+        document.getElementById('equiv-2-3').checked = decision.equivalences?.includes('1-2') || false;
+    } else {
+        // Réinitialiser le formulaire
+        document.getElementById('qualification-type').value = '';
+        document.getElementById('qualification-notes').value = '';
+        document.getElementById('selected-reading').value = '';
+        document.getElementById('equiv-1-2').checked = false;
+        document.getElementById('equiv-1-3').checked = false;
+        document.getElementById('equiv-2-3').checked = false;
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('qualifyVariantModal'));
+    modal.show();
+}
+
+/**
+ * Sauvegarde une décision
+ */
+async function saveDecision() {
+    const verseNumber = parseInt(document.getElementById('qualify-verse-number-input').value);
+    const qualification = document.getElementById('qualification-type').value;
+    const notes = document.getElementById('qualification-notes').value;
+    const selectedReading = document.getElementById('selected-reading').value;
+    
+    // Collecter les équivalences
+    const equivalences = [];
+    if (document.getElementById('equiv-1-2').checked) equivalences.push('0-1');
+    if (document.getElementById('equiv-1-3').checked) equivalences.push('0-2');
+    if (document.getElementById('equiv-2-3').checked) equivalences.push('1-2');
+    
+    const decision = {
+        qualification,
+        notes,
+        equivalences,
+        selected_reading: selectedReading !== '' ? selectedReading : null
+    };
+    
+    // Sauvegarder dans l'état en attente
+    collationState.pendingDecisions[verseNumber] = decision;
+    
+    try {
+        const response = await fetch('/api/decisions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                work_id: appState.selectedWork,
+                chapter_index: parseInt(appState.selectedChapter),
+                verse_number: verseNumber,
+                ...decision
+            })
+        });
+        
+        // Vérifier le statut HTTP
+        if (!response.ok) {
+            let errorMessage = `Erreur HTTP ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+                // Si le JSON parsing échoue, utiliser le message par défaut
+            }
+            console.error('Erreur lors de la sauvegarde:', response.status, errorMessage);
+            alert('Erreur lors de la sauvegarde : ' + errorMessage);
+            return;
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Mettre à jour le vers dans les résultats
+            const verse = collationState.results.verses.find(v => v.verse_number === verseNumber);
+            if (verse) {
+                verse.user_decision = decision;
+            }
+            
+            // Mettre à jour les stats
+            if (data.statistics) {
+                collationState.totalDecisions = data.statistics.total_decisions;
+            }
+            
+            // Fermer la modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('qualifyVariantModal'));
+            modal.hide();
+            
+            // Rafraîchir l'affichage
+            displayCollationResults();
+        } else {
+            alert('Erreur : ' + data.message);
+        }
+    } catch (error) {
+        console.error('Erreur lors de la sauvegarde de la décision:', error);
+        let errorMessage = 'Erreur de connexion au serveur';
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+            errorMessage = 'Impossible de se connecter au serveur pour sauvegarder la décision';
+        }
+        alert(errorMessage);
+    }
+}
+
+/**
+ * Efface une décision
+ */
+async function clearDecision() {
+    const verseNumber = parseInt(document.getElementById('qualify-verse-number-input').value);
+    
+    if (!confirm('Êtes-vous sûr de vouloir effacer cette décision ?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(
+            `/api/decisions/${appState.selectedWork}/${appState.selectedChapter}/${verseNumber}`,
+            { method: 'DELETE' }
+        );
+        
+        // Vérifier le statut HTTP
+        if (!response.ok) {
+            let errorMessage = `Erreur HTTP ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+                // Si le JSON parsing échoue, utiliser le message par défaut
+            }
+            console.error('Erreur lors de la suppression:', response.status, errorMessage);
+            alert('Erreur lors de la suppression : ' + errorMessage);
+            return;
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Supprimer de l'état
+            delete collationState.pendingDecisions[verseNumber];
+            
+            // Mettre à jour le vers dans les résultats
+            const verse = collationState.results.verses.find(v => v.verse_number === verseNumber);
+            if (verse) {
+                verse.user_decision = null;
+            }
+            
+            // Mettre à jour les stats
+            if (data.statistics) {
+                collationState.totalDecisions = data.statistics.total_decisions;
+            }
+            
+            // Fermer la modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('qualifyVariantModal'));
+            modal.hide();
+            
+            // Rafraîchir l'affichage
+            displayCollationResults();
+            
+            alert('Décision effacée');
+        } else {
+            alert('Erreur : ' + data.message);
+        }
+    } catch (error) {
+        console.error('Erreur lors de la suppression de la décision:', error);
+        let errorMessage = 'Erreur de connexion au serveur';
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+            errorMessage = 'Impossible de se connecter au serveur pour supprimer la décision';
+        }
+        alert(errorMessage);
+    }
+}
+
+/**
+ * Sauvegarde toutes les décisions en attente
+ */
+async function saveAllDecisions() {
+    if (Object.keys(collationState.pendingDecisions).length === 0) {
+        alert('Aucune modification à enregistrer');
+        return;
+    }
+    
+    const count = Object.keys(collationState.pendingDecisions).length;
+    alert(count + ' décisions enregistrées avec succès');
+    collationState.pendingDecisions = {};
+}
+
+/**
+ * Expose les fonctions globalement pour que onclick fonctionne
+ */
+window.addWork = addWork;
+window.addWitness = addWitness;
+window.launchCollation = launchCollation;
+window.openAddWitnessModal = openAddWitnessModal;
+window.openModifyWorkModal = openModifyWorkModal;
+window.openDeleteWorkModal = openDeleteWorkModal;
+window.openModifyWitnessModal = openModifyWitnessModal;
+window.openDeleteWitnessModal = openDeleteWitnessModal;
+window.updateWork = updateWork;
+window.deleteWork = deleteWork;
+window.updateWitness = updateWitness;
+window.deleteWitness = deleteWitness;
+window.previousPage = previousPage;
+window.nextPage = nextPage;
+window.openQualifyModal = openQualifyModal;
+window.saveDecision = saveDecision;
+window.clearDecision = clearDecision;
+window.saveAllDecisions = saveAllDecisions;

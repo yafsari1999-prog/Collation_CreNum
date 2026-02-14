@@ -1,0 +1,15 @@
+# Dépendances Python pour l'interface de collation
+
+# Framework web
+Flask==3.0.0
+
+# Collation de textes
+collatex==2.3
+python-Levenshtein>=0.21.0
+
+# Utilitaires
+python-dateutil==2.8.2
+
+# Tests
+pytest>=7.4.0
+pytest-flask>=1.2.0

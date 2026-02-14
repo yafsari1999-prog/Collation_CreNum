@@ -1,0 +1,48 @@
+[
+    [
+        {
+            "region": "MainZone",
+            "text": "Au temps que le roy Charles...",
+            "alto_id": "line_1",
+            "type": "text", 
+            "page": 1
+        },
+        {
+            "region": "MainZone",
+            "text": "regnoit en France moult sagement",
+            "alto_id": "line_2",
+            "type": "text",
+            "page": 1
+        },
+        {
+            "region": "MainZone",
+            "text": "et que la paix estoit partout",
+            "alto_id": "line_3",
+            "type": "text",
+            "page": 1
+        }
+    ],
+    [
+        {
+            "region": "MainZone",
+            "text": "Or advint ung jour de grant feste",
+            "alto_id": "line_4",
+            "type": "text",
+            "page": 2
+        },
+        {
+            "region": "MainZone",
+            "text": "que le roy estoit en son palais",
+            "alto_id": "line_5",
+            "type": "text",
+            "page": 2
+        },
+        {
+            "region": "MainZone",
+            "text": "avec tous les nobles chevaliers",
+            "alto_id": "line_6",
+            "type": "text",
+            "page": 2
+        }
+    ]
+]

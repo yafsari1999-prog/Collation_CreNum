@@ -1,0 +1,435 @@
+/* Styles pour l'interface de collation */
+
+body {
+    padding: 20px;
+    background-color: #f8f9fa;
+}
+
+/* Liste des œuvres */
+#works-list {
+    background-color: #fff;
+}
+
+#works-list .form-check {
+    padding: 12px;
+    margin: 0;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+#works-list .form-check:hover {
+    background-color: #f8f9fa;
+}
+
+#works-list .form-check:last-child {
+    border-bottom: none;
+}
+
+#works-list .form-check > div:first-child {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#works-list .form-check-input {
+    margin-top: 0;
+    flex-shrink: 0;
+}
+
+#works-list .form-check-label {
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+/* Boutons d'action des œuvres */
+.work-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 1;
+    flex-shrink: 0;
+}
+
+.work-actions .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.work-actions .btn i {
+    font-size: 0.875rem;
+}
+
+/* Liste des témoins */
+#witnesses-list {
+    background-color: #fff;
+}
+
+#witnesses-list .form-check {
+    padding: 12px;
+    margin: 0;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+#witnesses-list .form-check:hover {
+    background-color: #f8f9fa;
+}
+
+#witnesses-list .form-check:last-child {
+    border-bottom: none;
+}
+
+#witnesses-list .form-check > div:first-child {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#witnesses-list .form-check-input {
+    margin-top: 0;
+    flex-shrink: 0;
+}
+
+#witnesses-list .form-check-label {
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+/* Boutons d'action des témoins */
+.witness-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 1;
+    flex-shrink: 0;
+}
+
+.witness-actions .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.witness-actions .btn i {
+    font-size: 0.875rem;
+}
+
+.table-container {
+    max-width: 100%;
+    overflow-x: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 5px;
+}
+
+/* Styles pour les variantes */
+.variant {
+    padding: 2px 4px;
+    margin: 0 2px;
+    border-radius: 3px;
+}
+
+.variant.match {
+    color: #000;
+    background-color: transparent;
+}
+
+.variant.diff {
+    color: #dc3545;
+    background-color: #f8d7da;
+    font-weight: 500;
+}
+
+/* Style des lignes de vers */
+.verse-row {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.verse-row:hover {
+    background-color: #f1f3f5;
+}
+
+/* Cellules du tableau */
+.witness-cell {
+    padding: 10px;
+    vertical-align: top;
+    min-width: 250px;
+}
+
+/* En-têtes des témoins */
+.witness-header {
+    background-color: #212529;
+    color: white;
+    padding: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Grille de collation */
+.collation-header {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 1fr 120px;
+    gap: 10px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: bold;
+}
+
+.verse-number-header,
+.witness-header,
+.actions-header {
+    padding: 10px;
+    text-align: center;
+}
+
+.witness-header {
+    background-color: #e9ecef;
+    border-radius: 5px;
+}
+
+/* Ligne de vers */
+.verse-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 1fr 120px;
+    gap: 10px;
+    padding: 15px;
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s;
+}
+
+.verse-row:hover {
+    background-color: #f8f9fa;
+}
+
+.verse-row.has-variants {
+    background-color: #fff3cd;
+}
+
+.verse-row.has-decision {
+    background-color: #d1e7dd;
+}
+
+.verse-number-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #495057;
+}
+
+.witness-cell {
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    min-height: 60px;
+    word-wrap: break-word;
+    position: relative;
+}
+
+.witness-cell.missing {
+    background-color: #f8f9fa;
+    font-style: italic;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.witness-cell .metadata {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 5px;
+}
+
+.actions-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: center;
+    justify-content: center;
+}
+
+.actions-cell .btn {
+    width: 100%;
+}
+
+/* Badges de statut */
+.status-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+}
+
+/* Boutons d'annotation */
+.annotation-btn {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    margin: 2px;
+}
+
+/* Highlight au survol */
+.verse-cell:hover {
+    background-color: #e9ecef;
+    cursor: pointer;
+}
+
+/* Vers complet */
+.verse-complete {
+    background-color: #d1e7dd !important;
+}
+
+/* Vers avec différences */
+.verse-differences {
+    background-color: #fff;
+}
+
+/* Modal d'annotation */
+.annotation-modal {
+    z-index: 1050;
+}
+
+/* Loading spinner */
+.spinner-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    flex-direction: column;
+}
+
+/* Similarité */
+.similarity-high {
+    color: #198754;
+}
+
+.similarity-medium {
+    color: #ffc107;
+}
+
+.similarity-low {
+    color: #dc3545;
+}
+
+/* ==================== */
+/* Tokens de mots cliquables */
+/* ==================== */
+
+.word-token {
+    display: inline-block;
+    padding: 2px 4px;
+    margin: 1px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+}
+
+.word-token:hover {
+    background-color: #e3f2fd;
+}
+
+/* Mot avec variante */
+.word-token.word-variant {
+    background-color: #fff3cd;
+    border-bottom: 2px solid #ffc107;
+}
+
+.word-token.word-variant:hover {
+    background-color: #ffe69c;
+}
+
+/* Surlignage synchronisé */
+.word-token.word-highlight,
+.word-gap.word-highlight {
+    background-color: #bbdefb !important;
+    box-shadow: 0 0 0 2px #2196f3;
+}
+
+/* Afficher l'index au hover */
+.word-token.word-highlight::before,
+.word-gap.word-highlight::before {
+    content: attr(data-show-index);
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    background: #2196f3;
+    color: white;
+    padding: 1px 4px;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+/* Gap (mot manquant) */
+.word-gap {
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 1px;
+    background-color: #f8d7da;
+    color: #842029;
+    border-radius: 3px;
+    font-style: italic;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+
+.word-gap:hover {
+    background-color: #f5c2c7;
+}
+
+/* Mot classifié */
+.word-token.word-classified-orthographic {
+    background-color: #e2e3e5;
+    border-bottom: 2px solid #6c757d;
+}
+
+.word-token.word-classified-lexical {
+    background-color: #cfe2ff;
+    border-bottom: 2px solid #0d6efd;
+}
+
+.word-token.word-classified-significant {
+    background-color: #f8d7da;
+    border-bottom: 2px solid #dc3545;
+}
+
+.word-token.word-classified-equivalent {
+    background-color: #d1e7dd;
+    border-bottom: 2px solid #198754;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .collation-header,
+    .verse-row {
+        grid-template-columns: 60px 1fr 80px;
+        gap: 8px;
+    }
+    
+    /* Cacher 2 témoins sur petit écran */
+    .witness-header:nth-child(3),
+    .witness-header:nth-child(4),
+    .witness-cell:nth-child(3),
+    .witness-cell:nth-child(4) {
+        display: none;
+    }
+}
+
