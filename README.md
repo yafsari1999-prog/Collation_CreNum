@@ -47,8 +47,7 @@ Puis ouvrir **http://localhost:5001** dans votre navigateur.
 
 ## Documentation
 
-- [INSTALLATION.md](INSTALLATION.md) - Guide d'installation détaillé
-- [README_UTILISATION.md](README_UTILISATION.md) - Guide d'utilisation complet
+Pour plus de détails sur l'installation, consultez [INSTALLATION.md](INSTALLATION.md).
 
 ---
 
