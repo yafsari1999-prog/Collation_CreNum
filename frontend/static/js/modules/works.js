@@ -117,7 +117,6 @@ export function updateWorksSelect() {
  * Gère la sélection d'une œuvre
  */
 export async function onWorkSelected(workId) {
-    console.log('Œuvre sélectionnée:', workId);
     appState.selectedWork = workId;
     
     // Réinitialiser les témoins et chapitres
@@ -145,6 +144,7 @@ export async function addWork() {
         const data = await API.createWork({ name, author, date });
         
         if (data.status === 'success') {
+            document.activeElement?.blur();
             bootstrap.Modal.getInstance(document.getElementById('addWorkModal')).hide();
             document.getElementById('add-work-form').reset();
             await loadWorks();
@@ -175,7 +175,7 @@ export function openEditWorkModal(work) {
     if (document.getElementById('edit-work-date')) {
         document.getElementById('edit-work-date').value = work.date || '';
     }
-    new bootstrap.Modal(document.getElementById('editWorkModal')).show();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('editWorkModal')).show();
 }
 
 /**
@@ -196,6 +196,7 @@ export async function updateWork() {
         const data = await API.updateWork(workId, { name, author, date });
         
         if (data.status === 'success') {
+            document.activeElement?.blur();
             bootstrap.Modal.getInstance(document.getElementById('editWorkModal')).hide();
             await loadWorks();
             
@@ -221,7 +222,9 @@ export async function updateWork() {
 export function confirmDeleteWork(work) {
     document.getElementById('delete-work-id').value = work.id;
     document.getElementById('delete-work-name').textContent = work.name;
-    new bootstrap.Modal(document.getElementById('deleteWorkModal')).show();
+    const witnessCountEl = document.getElementById('delete-work-witness-count');
+    if (witnessCountEl) witnessCountEl.textContent = appState.witnesses.length;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteWorkModal')).show();
 }
 
 /**
@@ -234,6 +237,7 @@ export async function deleteWork() {
         const data = await API.deleteWork(workId);
         
         if (data.status === 'success') {
+            document.activeElement?.blur();
             bootstrap.Modal.getInstance(document.getElementById('deleteWorkModal')).hide();
             
             // Si c'était l'œuvre sélectionnée

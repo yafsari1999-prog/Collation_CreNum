@@ -4,6 +4,7 @@ Gère la comparaison de 3 témoins et la normalisation du texte.
 """
 
 import json
+import unicodedata
 from collatex import Collation, collate
 import re
 
@@ -18,6 +19,7 @@ def normalize_text(text):
     - Y -> I
     - ict/ist -> it
     - tz -> ts
+    - Supprime "/" (ne pas considérer comme token)
     
     Args:
         text: Texte à normaliser
@@ -27,6 +29,12 @@ def normalize_text(text):
     """
     if not text:
         return ""
+    
+    # Normaliser Unicode NFC pour fusionner les diacritiques combinants
+    text = unicodedata.normalize('NFC', text)
+    
+    # Supprimer la ponctuation et caractères spéciaux
+    text = re.sub(r'[/.,;:!?\-–—\'\"()\[\]{}…·*°⸫⁊¶§†‡⸝⸞‹›«»„""''‛‟⸗]', '', text)
     
     # Minuscules
     text = text.lower()
@@ -44,6 +52,37 @@ def normalize_text(text):
     # tz -> ts
     text = text.replace('tz', 'ts')
     
+    return text
+
+
+def prepare_text_for_collation(text):
+    """
+    Prépare le texte pour CollateX en supprimant la ponctuation
+    et les caractères spéciaux qui ne doivent pas être considérés comme tokens.
+    
+    - Normalisation Unicode NFC pour fusionner les diacritiques combinants
+    - Suppression des diacritiques combinants restants (catégorie Mn)
+      pour éviter que CollateX les traite comme tokens séparés
+      (ex: q + macron combinant serait sinon 2 tokens)
+    - Suppression de la ponctuation
+    
+    Args:
+        text: Texte original
+    
+    Returns:
+        Texte nettoyé pour la collation
+    """
+    if not text:
+        return ""
+    # Normaliser Unicode NFC pour fusionner les diacritiques combinants
+    text = unicodedata.normalize('NFC', text)
+    # Supprimer les diacritiques combinants restants (catégorie Unicode Mn)
+    # qui n'ont pas de forme précomposée (ex: q + macron combinant)
+    text = ''.join(c for c in text if unicodedata.category(c) != 'Mn')
+    # Supprimer la ponctuation et caractères spéciaux
+    text = re.sub(r'[/.,;:!?\-–—\'\"()\[\]{}…·*°⸫⁊¶§†‡⸝⸞‹›«»„""''‛‟⸗]', ' ', text)
+    # Réduire les espaces multiples en un seul
+    text = re.sub(r'\s+', ' ', text).strip()
     return text
 
 
@@ -86,9 +125,48 @@ def load_witness_data(witness_file, chapter_index):
         return []
 
 
+def tokenize_witness_text(text):
+    """
+    Tokenise un texte de témoin en tokens avec forme originale (t) et normalisée (n).
+    
+    Utilise le modèle t/n du POC CollateX :
+    - "t" : texte original (pour affichage, avec diacritiques, casse d'origine)
+    - "n" : texte normalisé (pour l'alignement CollateX)
+    
+    Args:
+        text: Texte original du vers
+    
+    Returns:
+        Liste de dicts {"t": ..., "n": ...}
+    """
+    if not text:
+        return []
+    
+    # Normaliser Unicode NFC pour fusionner les diacritiques combinants
+    text = unicodedata.normalize('NFC', text)
+    
+    # Tokeniser en gardant les mots et les espaces/ponctuation
+    # Regex du POC : \w+ capture les mots (incluant les diacritiques combinants)
+    raw_tokens = re.findall(r'\w+', text)
+    
+    tokens = []
+    for word in raw_tokens:
+        token = {
+            "t": word,                    # Forme originale pour affichage
+            "n": normalize_text(word)      # Forme normalisée pour comparaison
+        }
+        tokens.append(token)
+    
+    return tokens
+
+
 def collate_verse_words(texts, witness_names):
     """
     Utilise CollateX pour aligner les mots d'un vers entre 3 témoins.
+    
+    Utilise le modèle t/n : CollateX reçoit des tokens pré-tokenisés avec
+    "t" (texte original pour affichage) et "n" (texte normalisé pour alignement).
+    CollateX aligne sur "n" mais conserve "t" pour l'affichage.
     
     Args:
         texts: Liste de 3 textes (un par témoin)
@@ -97,30 +175,29 @@ def collate_verse_words(texts, witness_names):
     Returns:
         Liste de positions avec les mots alignés
     """
-    # Créer une collation CollateX
-    collation = Collation()
+    # Construire l'input pré-tokenisé pour CollateX
+    witnesses_input = {"witnesses": []}
     
-    for i, (text, name) in enumerate(zip(texts, witness_names)):
-        if text:
-            collation.add_plain_witness(name, text)
-        else:
-            collation.add_plain_witness(name, "")
+    for text, name in zip(texts, witness_names):
+        tokens = tokenize_witness_text(text)
+        witnesses_input["witnesses"].append({
+            "id": name,
+            "tokens": tokens
+        })
     
     # Effectuer la collation
     try:
-        alignment_json = collate(collation, output='json', segmentation=False)
+        alignment_json = collate(witnesses_input, output='json', segmentation=False)
         
-        # Parser le résultat JSON (collate renvoie une chaîne JSON)
+        # Parser le résultat JSON
         if isinstance(alignment_json, str):
             alignment = json.loads(alignment_json)
         else:
             alignment = alignment_json
         
-        # Parser le résultat JSON
         # La table CollateX est organisée par témoin (lignes) puis par colonnes
         # table[witness_idx][column_idx] = [tokens]
         table = alignment.get('table', [])
-        witnesses = alignment.get('witnesses', witness_names)
         
         if not table or len(table) == 0:
             return fallback_word_alignment(texts, witness_names)
@@ -142,13 +219,14 @@ def collate_verse_words(texts, witness_names):
             unique_normalized = set()
             
             for wit_idx in range(num_witnesses):
-                # Accéder à table[witness][column]
                 if wit_idx < len(table) and col_idx < len(table[wit_idx]):
                     cell = table[wit_idx][col_idx]
                     if cell and len(cell) > 0:
-                        # cell est une liste de tokens
+                        # Récupérer le texte original "t" et le normalisé "n"
+                        # CollateX conserve les propriétés t et n des tokens
                         word_text = ' '.join([t.get('t', '').strip() for t in cell])
-                        word_normalized = normalize_text(word_text)
+                        word_normalized = ' '.join([t.get('n', '').strip() for t in cell])
+                        
                         position['words'].append({
                             'witness_index': wit_idx,
                             'text': word_text,
@@ -157,7 +235,6 @@ def collate_verse_words(texts, witness_names):
                         })
                         unique_normalized.add(word_normalized)
                     else:
-                        # Cellule vide (gap)
                         position['words'].append({
                             'witness_index': wit_idx,
                             'text': '',
@@ -166,7 +243,6 @@ def collate_verse_words(texts, witness_names):
                         })
                         unique_normalized.add('')
                 else:
-                    # Hors limites
                     position['words'].append({
                         'witness_index': wit_idx,
                         'text': '',
@@ -183,7 +259,8 @@ def collate_verse_words(texts, witness_names):
         
     except Exception as e:
         print(f"Erreur CollateX: {e}")
-        # Fallback: alignement simple par position
+        import traceback
+        traceback.print_exc()
         return fallback_word_alignment(texts, witness_names)
 
 

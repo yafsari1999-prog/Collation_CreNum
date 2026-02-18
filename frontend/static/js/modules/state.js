@@ -18,6 +18,7 @@ export const collationState = {
     versesPerPage: 20,
     pendingDecisions: {},
     wordDecisions: {},
+    savedWordDecisions: {},
     totalDecisions: 0
 };
 
@@ -36,5 +37,6 @@ export function resetCollationState() {
     collationState.currentPage = 1;
     collationState.pendingDecisions = {};
     collationState.wordDecisions = {};
+    collationState.savedWordDecisions = {};
     collationState.totalDecisions = 0;
 }

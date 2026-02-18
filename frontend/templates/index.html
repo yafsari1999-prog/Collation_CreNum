@@ -104,7 +104,10 @@
                             <div>
                                 <span class="badge bg-info" id="verse-range-badge">Vers 1-20</span>
                                 <span class="badge bg-primary" id="total-verses-badge">0 vers</span>
-                                <span class="badge bg-success" id="decisions-badge">0 enregistrements</span>
+                                <span class="badge bg-warning text-dark" id="decisions-badge">0 variantes</span>
+                                <span class="badge bg-success" id="conserved-badge" title="Variantes conservées">
+                                    <i class="bi bi-bookmark-check"></i> 0 conservées
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -125,7 +128,7 @@
                                 <div class="witness-header" id="witness-header-1">Témoin 1</div>
                                 <div class="witness-header" id="witness-header-2">Témoin 2</div>
                                 <div class="witness-header" id="witness-header-3">Témoin 3</div>
-                                <div class="actions-header">Actions</div>
+                                <div class="actions-header"></div>
                             </div>
 
                             <!-- Conteneur des vers -->
@@ -150,14 +153,30 @@
                                     Suivant <i class="bi bi-chevron-right"></i>
                                 </button>
                             </div>
-                            <div>
-                                <button class="btn btn-success" onclick="saveAllDecisions()">
-                                    <i class="bi bi-floppy"></i> Enregistrer les modifications
+                            <div class="d-flex align-items-center gap-2">
+                                <button class="btn btn-outline-info btn-sm" id="footer-decisions-badge" onclick="showCurrentDecisions()" title="Voir les décisions en cours">
+                                    <i class="bi bi-pencil-square"></i> 0 décisions en cours
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="cancelAllDecisions()">
+                                    <i class="bi bi-x-circle"></i> Annuler
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="saveAllDecisions()">
+                                    <i class="bi bi-floppy"></i> Enregistrer
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Bouton Exporter (en dehors de la card) -->
+        <div class="row mt-4 mb-4" id="export-section" style="display: none;">
+            <div class="col-md-12 text-center">
+                <button class="btn btn-primary btn-lg" onclick="openExportModal()">
+                    <i class="bi bi-download"></i> Exporter
+                </button>
+                <div class="text-muted small mt-1">Exporter l'ensemble des décisions pour <span id="export-work-name"></span></div>
             </div>
         </div>
     </div>
@@ -267,7 +286,7 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="delete-work-id">
-                    <p class="mb-3">Êtes-vous sûr de vouloir supprimer cette œuvre ?</p>
+                    <p class="mb-3">Êtes-vous sûr de vouloir supprimer l'œuvre <strong id="delete-work-name"></strong> ?</p>
                     <div class="alert alert-warning mb-0">
                         <strong>Attention :</strong> Cette action supprimera également :
                         <ul class="mb-0 mt-2">

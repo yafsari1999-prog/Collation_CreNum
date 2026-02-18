@@ -158,13 +158,29 @@ export async function performCollation(workId, witnessIds, chapterIndex) {
 // === API DECISIONS ===
 
 export async function saveDecision(workId, chapterIndex, verseNumber, decision) {
+    // Validation des paramètres obligatoires
+    if (!workId) {
+        throw new Error('work_id est requis');
+    }
+    if (chapterIndex === null || chapterIndex === undefined || chapterIndex === '') {
+        throw new Error('chapter_index est requis');
+    }
+    if (!verseNumber) {
+        throw new Error('verse_number est requis');
+    }
+    
+    const chapIdx = parseInt(chapterIndex);
+    if (isNaN(chapIdx)) {
+        throw new Error('chapter_index doit être un nombre valide');
+    }
+    
     try {
         const response = await fetch('/api/decisions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 work_id: workId,
-                chapter_index: parseInt(chapterIndex),
+                chapter_index: chapIdx,
                 verse_number: verseNumber,
                 ...decision
             })

@@ -55,12 +55,26 @@ export async function launchCollation() {
             document.getElementById('witness-header-2').textContent = collationState.results.witnesses[1];
             document.getElementById('witness-header-3').textContent = collationState.results.witnesses[2];
             
+            // Charger les décisions de mots persistées
+            try {
+                const { loadWordDecisions } = await import('./decisions.js');
+                await loadWordDecisions();
+            } catch (e) {
+                console.warn('Impossible de charger les décisions mots:', e);
+            }
+            
             // Afficher les résultats
             displayCollationResults();
             
             collationLoading.style.display = 'none';
             collationTable.style.display = 'block';
             collationFooter.style.display = 'block';
+            
+            // Afficher la section export
+            const exportSection = document.getElementById('export-section');
+            if (exportSection) exportSection.style.display = 'block';
+            const exportWorkName = document.getElementById('export-work-name');
+            if (exportWorkName) exportWorkName.textContent = appState.selectedWork || '';
         } else {
             collationLoading.style.display = 'none';
             noResults.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
@@ -94,8 +108,39 @@ export function displayCollationResults() {
     // Mettre à jour le footer
     const totalVersesBadge = document.getElementById('total-verses-badge');
     const decisionsBadge = document.getElementById('decisions-badge');
+    const conservedBadge = document.getElementById('conserved-badge');
+    
+    // Compter le total de variantes
+    let totalVariants = 0;
+    collationState.results.verses.forEach(v => {
+        totalVariants += v.variant_word_count || 0;
+    });
+    
+    // Compter les conservées
+    let conservedCount = 0;
+    if (collationState.wordDecisions) {
+        conservedCount = Object.values(collationState.wordDecisions)
+            .filter(d => d.action === 'conserver').length;
+    }
+    
     if (totalVersesBadge) totalVersesBadge.textContent = `${totalVerses} vers`;
-    if (decisionsBadge) decisionsBadge.textContent = `${collationState.totalDecisions} enregistrements`;
+    if (decisionsBadge) decisionsBadge.textContent = `${totalVariants} variantes`;
+    if (conservedBadge) conservedBadge.innerHTML = `<i class="bi bi-bookmark-check"></i> ${conservedCount} conservées`;
+    
+    // Mettre à jour le badge footer (nouvelles décisions de la séance)
+    const footerDecisionsBadge = document.getElementById('footer-decisions-badge');
+    const saved = collationState.savedWordDecisions || {};
+    const current = collationState.wordDecisions || {};
+    let pendingCount = 0;
+    // Nouvelles ou modifiées
+    for (const key of Object.keys(current)) {
+        if (!saved[key] || JSON.stringify(saved[key]) !== JSON.stringify(current[key])) pendingCount++;
+    }
+    // Supprimées
+    for (const key of Object.keys(saved)) {
+        if (!current[key]) pendingCount++;
+    }
+    if (footerDecisionsBadge) footerDecisionsBadge.innerHTML = `<i class="bi bi-pencil-square"></i> ${pendingCount} décisions en cours`;
     
     // Mettre à jour la pagination
     const currentPageEl = document.getElementById('current-page');
@@ -123,9 +168,25 @@ export function createVerseRow(verse) {
     row.className = 'verse-row';
     row.dataset.verseNumber = verse.verse_number;
     
+    // Compter les décisions de mots pour ce vers
+    let wordDecisionCount = 0;
+    let variantCount = verse.variant_word_count || 0;
+    if (collationState.wordDecisions && verse.word_alignment) {
+        verse.word_alignment.forEach((position, posIndex) => {
+            if (position.has_variant) {
+                const key = `${verse.verse_number}-${posIndex}`;
+                if (collationState.wordDecisions[key]) {
+                    wordDecisionCount++;
+                }
+            }
+        });
+    }
+    
     // Classe CSS selon le statut
     if (!verse.has_variants) {
         row.classList.add('has-decision');
+    } else if (variantCount > 0 && wordDecisionCount >= variantCount) {
+        row.classList.add('all-words-decided');
     } else if (verse.user_decision) {
         row.classList.add('has-decision');
     } else {
@@ -160,7 +221,19 @@ export function createVerseRow(verse) {
                     
                     // Marquer les variantes
                     if (position.has_variant) {
-                        wordSpan.classList.add('word-variant');
+                        const wordKey = `${verse.verse_number}-${posIndex}`;
+                        const wordDec = collationState.wordDecisions?.[wordKey];
+                        if (wordDec) {
+                            if (wordDec.action === 'ignorer') {
+                                wordSpan.classList.add('word-ignored');
+                                wordSpan.title = wordDec.explication || 'Ignorée';
+                            } else {
+                                wordSpan.classList.add('word-decided');
+                                wordSpan.title = wordDec.explication || 'Conservée';
+                            }
+                        } else {
+                            wordSpan.classList.add('word-variant');
+                        }
                     }
                     
                     // Hover: surligner dans les 3 témoins
@@ -201,21 +274,20 @@ export function createVerseRow(verse) {
     const actionDiv = document.createElement('div');
     actionDiv.className = 'actions-cell';
     
-    if (verse.has_variants) {
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-sm btn-primary';
-        btn.innerHTML = '<i class="bi bi-pencil-square"></i> Vers';
-        btn.title = 'Qualifier le vers complet';
-        btn.onclick = () => openQualifyModal(verse);
-        actionDiv.appendChild(btn);
+    if (verse.has_variants && verse.variant_word_count > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-warning';
+        badge.textContent = `${verse.variant_word_count} var.`;
+        badge.title = `${verse.variant_word_count} mot(s) avec variante`;
+        actionDiv.appendChild(badge);
         
-        // Badge indiquant le nombre de mots variants
-        if (verse.variant_word_count > 0) {
-            const badge = document.createElement('span');
-            badge.className = 'badge bg-warning ms-1';
-            badge.textContent = `${verse.variant_word_count} var.`;
-            badge.title = `${verse.variant_word_count} mot(s) avec variante`;
-            actionDiv.appendChild(badge);
+        // Afficher le nombre de décisions si > 0
+        if (wordDecisionCount > 0) {
+            const decBadge = document.createElement('span');
+            decBadge.className = 'badge bg-success ms-1';
+            decBadge.textContent = `${wordDecisionCount} déc.`;
+            decBadge.title = `${wordDecisionCount} décision(s) enregistrée(s)`;
+            actionDiv.appendChild(decBadge);
         }
     } else {
         actionDiv.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i></span>';

@@ -98,7 +98,7 @@ export function openQualifyModal(verse) {
     }
     
     // Ouvrir la modal
-    const modal = new bootstrap.Modal(document.getElementById('qualifyVariantModal'));
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('qualifyVariantModal'));
     modal.show();
 }
 
@@ -106,7 +106,19 @@ export function openQualifyModal(verse) {
  * Sauvegarde une décision utilisateur
  */
 export async function saveDecision() {
-    const verseNumber = parseInt(document.getElementById('qualify-verse-number-input').value);
+    console.log('saveDecision appelé');
+    
+    const verseNumberInput = document.getElementById('qualify-verse-number-input');
+    console.log('verseNumberInput:', verseNumberInput, 'value:', verseNumberInput?.value);
+    
+    const verseNumber = parseInt(verseNumberInput?.value);
+    console.log('verseNumber parsé:', verseNumber);
+    
+    if (isNaN(verseNumber)) {
+        alert('Erreur: Numéro de vers invalide');
+        return;
+    }
+    
     const qualificationEl = document.getElementById('qualification-type');
     const notesEl = document.getElementById('qualification-notes');
     const selectedReadingEl = document.getElementById('selected-reading');
@@ -117,6 +129,10 @@ export async function saveDecision() {
     const qualification = qualificationEl ? qualificationEl.value : '';
     const notes = notesEl ? notesEl.value : '';
     const selectedReading = selectedReadingEl ? selectedReadingEl.value : '';
+    
+    console.log('qualification:', qualification, 'notes:', notes);
+    console.log('appState.selectedWork:', appState.selectedWork);
+    console.log('appState.selectedChapter:', appState.selectedChapter);
     
     // Collecter les équivalences cochées
     const equivalences = [];
@@ -135,6 +151,13 @@ export async function saveDecision() {
     collationState.pendingDecisions[verseNumber] = decision;
     
     try {
+        console.log('Appel API.saveDecision avec:', {
+            workId: appState.selectedWork,
+            chapterIndex: appState.selectedChapter,
+            verseNumber: verseNumber,
+            decision: decision
+        });
+        
         const data = await API.saveDecision(
             appState.selectedWork,
             appState.selectedChapter,
@@ -142,7 +165,11 @@ export async function saveDecision() {
             decision
         );
         
+        console.log('Réponse API:', data);
+        
         if (data.status === 'success') {
+            console.log('Décision sauvegardée avec succès');
+            
             // Mettre à jour le vers dans les résultats
             const verse = collationState.results.verses.find(v => v.verse_number === verseNumber);
             if (verse) {
@@ -155,11 +182,17 @@ export async function saveDecision() {
             }
             
             // Fermer la modal
+            document.activeElement?.blur();
             const modal = bootstrap.Modal.getInstance(document.getElementById('qualifyVariantModal'));
-            modal.hide();
+            if (modal) {
+                modal.hide();
+            }
             
             // Rafraîchir l'affichage
             displayCollationResults();
+            
+            // Confirmation visuelle (optionnel)
+            console.log('Décision enregistrée pour vers', verseNumber);
         } else {
             alert('Erreur : ' + data.message);
         }
@@ -202,6 +235,7 @@ export async function clearDecision() {
             }
             
             // Fermer la modal
+            document.activeElement?.blur();
             const modal = bootstrap.Modal.getInstance(document.getElementById('qualifyVariantModal'));
             modal.hide();
             
@@ -216,20 +250,6 @@ export async function clearDecision() {
         console.error('Erreur lors de la suppression de la décision:', error);
         alert(error.message || 'Erreur de connexion au serveur');
     }
-}
-
-/**
- * Sauvegarde toutes les décisions en attente
- */
-export async function saveAllDecisions() {
-    if (Object.keys(collationState.pendingDecisions).length === 0) {
-        alert('Aucune modification à enregistrer');
-        return;
-    }
-    
-    const count = Object.keys(collationState.pendingDecisions).length;
-    alert(count + ' décisions enregistrées avec succès');
-    collationState.pendingDecisions = {};
 }
 
 /**
@@ -255,7 +275,7 @@ export function openWordClassifyModal(verse, posIndex) {
     document.getElementById('word-position-input').value = posIndex;
     document.getElementById('word-verse-input').value = verse.verse_number;
     
-    // Afficher les mots dans les 3 témoins
+    // Récupérer les métadonnées de page pour chaque témoin
     const witnessNames = collationState.results.witnesses;
     
     for (let i = 0; i < 3; i++) {
@@ -270,29 +290,40 @@ export function openWordClassifyModal(verse, posIndex) {
                 if (wordData.missing) {
                     textEl.innerHTML = '<em class="text-muted">∅ (absent)</em>';
                 } else {
-                    textEl.innerHTML = `<strong>${wordData.text}</strong>`;
-                    if (wordData.normalized && wordData.normalized !== wordData.text.toLowerCase()) {
-                        textEl.innerHTML += `<br><small class="text-muted">normalisé: ${wordData.normalized}</small>`;
-                    }
+                    textEl.innerHTML = `<strong class="fs-5">${wordData.text}</strong>`;
                 }
             }
         }
     }
     
-    // Vérifier si position a une décision existante
-    const existingDecision = getWordDecision(verse.verse_number, posIndex);
-    const classificationSelect = document.getElementById('word-classification');
-    const notesTextarea = document.getElementById('word-notes');
+    // Stocker les infos page pour la sauvegarde
+    const pageInputs = document.querySelectorAll('.word-page-input');
+    pageInputs.forEach(el => el.remove());
     
-    if (classificationSelect) {
-        classificationSelect.value = existingDecision?.classification || '';
+    for (let i = 0; i < 3; i++) {
+        const witnessData = verse.witnesses[i];
+        const pageInput = document.createElement('input');
+        pageInput.type = 'hidden';
+        pageInput.className = 'word-page-input';
+        pageInput.dataset.witnessIndex = i;
+        pageInput.value = witnessData?.metadata?.page || '';
+        modal.querySelector('.modal-body').appendChild(pageInput);
     }
-    if (notesTextarea) {
-        notesTextarea.value = existingDecision?.notes || '';
+    
+    // Vérifier si une décision existante
+    const existingDecision = getWordDecision(verse.verse_number, posIndex);
+    const explicationTextarea = document.getElementById('word-explication');
+    
+    if (existingDecision) {
+        setWordActionSwitch(existingDecision.action === 'ignorer' ? 'ignorer' : 'conserver');
+        explicationTextarea.value = existingDecision.explication || '';
+    } else {
+        setWordActionSwitch('conserver');
+        explicationTextarea.value = '';
     }
     
     // Ouvrir le modal
-    const bsModal = new bootstrap.Modal(modal);
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
     bsModal.show();
 }
 
@@ -304,9 +335,9 @@ function createWordClassifyModal() {
     <div class="modal fade" id="wordClassifyModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header bg-warning bg-opacity-25">
                     <h5 class="modal-title">
-                        Classifier le mot (vers <span id="word-verse-number"></span>, position <span id="word-position-index"></span>)
+                        Classifier le mot — Vers <span id="word-verse-number"></span>, position <span id="word-position-index"></span>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -316,49 +347,44 @@ function createWordClassifyModal() {
                     
                     <!-- Affichage des mots dans les 3 témoins -->
                     <div class="mb-4">
-                        <h6>Mot dans chaque témoin :</h6>
                         <div class="row g-2">
                             <div class="col-4 text-center">
-                                <small id="word-witness-1-name" class="text-muted">Témoin 1</small>
-                                <div class="p-2 border rounded bg-light" id="word-witness-1-text"></div>
+                                <small id="word-witness-1-name" class="text-muted d-block mb-1">Témoin 1</small>
+                                <div class="p-3 border rounded bg-light" id="word-witness-1-text"></div>
                             </div>
                             <div class="col-4 text-center">
-                                <small id="word-witness-2-name" class="text-muted">Témoin 2</small>
-                                <div class="p-2 border rounded bg-light" id="word-witness-2-text"></div>
+                                <small id="word-witness-2-name" class="text-muted d-block mb-1">Témoin 2</small>
+                                <div class="p-3 border rounded bg-light" id="word-witness-2-text"></div>
                             </div>
                             <div class="col-4 text-center">
-                                <small id="word-witness-3-name" class="text-muted">Témoin 3</small>
-                                <div class="p-2 border rounded bg-light" id="word-witness-3-text"></div>
+                                <small id="word-witness-3-name" class="text-muted d-block mb-1">Témoin 3</small>
+                                <div class="p-3 border rounded bg-light" id="word-witness-3-text"></div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Classification -->
+                    <!-- Action : ignorer ou conserver (switch) -->
                     <div class="mb-3">
-                        <label class="form-label"><strong>Type de variante :</strong></label>
-                        <select class="form-select" id="word-classification">
-                            <option value="">-- Non classifié --</option>
-                            <option value="identical">✓ Identique (pas de variante)</option>
-                            <option value="orthographic">Orthographique (ss/s, y/i, etc.)</option>
-                            <option value="graphic">Graphique (u/v, i/j)</option>
-                            <option value="equivalent">Équivalent (sens identique)</option>
-                            <option value="lexical">Lexical (mot différent)</option>
-                            <option value="omission">Omission (mot absent)</option>
-                            <option value="addition">Addition (mot ajouté)</option>
-                            <option value="substitution">Substitution</option>
-                            <option value="significant">Variante significative</option>
-                        </select>
+                        <input type="hidden" id="word-action-value" value="conserver">
+                        <div class="word-action-switch" id="word-action-switch">
+                            <div class="word-action-slider" id="word-action-slider"></div>
+                            <div class="word-action-option word-action-conserver active" id="word-action-conserver-label" onclick="toggleWordAction('conserver')">
+                                Conserver
+                            </div>
+                            <div class="word-action-option word-action-ignorer" id="word-action-ignorer-label" onclick="toggleWordAction('ignorer')">
+                                Ignorer
+                            </div>
+                        </div>
                     </div>
                     
-                    <!-- Notes -->
+                    <!-- Description -->
                     <div class="mb-3">
-                        <label for="word-notes" class="form-label"><strong>Notes :</strong></label>
-                        <textarea class="form-control" id="word-notes" rows="2" placeholder="Commentaire sur ce mot..."></textarea>
+                        <label for="word-explication" class="form-label"><strong>Description :</strong></label>
+                        <textarea class="form-control" id="word-explication" rows="3" placeholder="Décrire la variante..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="button" class="btn btn-outline-danger" onclick="clearWordDecision()">Effacer</button>
                     <button type="button" class="btn btn-primary" onclick="saveWordDecision()">Enregistrer</button>
                 </div>
             </div>
@@ -377,46 +403,63 @@ function getWordDecision(verseNumber, posIndex) {
 }
 
 /**
- * Sauvegarde une décision de mot
+ * Sauvegarde une décision de mot (en mémoire seulement, persistée via Enregistrer)
  */
 export async function saveWordDecision() {
     const verseNumber = parseInt(document.getElementById('word-verse-input').value);
     const posIndex = parseInt(document.getElementById('word-position-input').value);
-    const classification = document.getElementById('word-classification').value;
-    const notes = document.getElementById('word-notes').value;
+    const action = document.getElementById('word-action-value')?.value || 'conserver';
+    const explication = document.getElementById('word-explication').value;
     
-    // Initialiser wordDecisions si nécessaire
+    // Récupérer les mots des 3 témoins
+    const verse = collationState.results.verses.find(v => v.verse_number === verseNumber);
+    if (!verse) return;
+    
+    const position = verse.word_alignment[posIndex];
+    const words = {};
+    const pages = {};
+    const witnessNames = collationState.results.witnesses;
+    
+    for (let i = 0; i < 3; i++) {
+        const wordData = position.words.find(w => w.witness_index === i);
+        words[witnessNames[i]] = wordData?.missing ? '∅' : (wordData?.text || '');
+        
+        // Récupérer la page
+        const pageInput = document.querySelector(`.word-page-input[data-witness-index="${i}"]`);
+        pages[witnessNames[i]] = pageInput?.value || '';
+    }
+    
+    const decision = {
+        verse_number: verseNumber,
+        position: posIndex,
+        action: action,
+        explication: explication || null,
+        words: words,
+        pages: pages
+    };
+    
+    // Sauvegarder en mémoire seulement
     if (!collationState.wordDecisions) {
         collationState.wordDecisions = {};
     }
-    
     const key = `${verseNumber}-${posIndex}`;
+    collationState.wordDecisions[key] = decision;
     
-    if (classification) {
-        collationState.wordDecisions[key] = {
-            verse_number: verseNumber,
-            position: posIndex,
-            classification: classification,
-            notes: notes || null
-        };
-    } else {
-        delete collationState.wordDecisions[key];
-    }
+    console.log('Décision mot (mémoire):', decision);
     
     // Fermer le modal
+    document.activeElement?.blur();
     const modal = bootstrap.Modal.getInstance(document.getElementById('wordClassifyModal'));
-    modal.hide();
+    if (modal) modal.hide();
     
-    // Rafraîchir l'affichage pour montrer la classification
+    // Rafraîchir l'affichage
     displayCollationResults();
-    
-    console.log('Décision mot enregistrée:', collationState.wordDecisions[key]);
 }
 
 /**
- * Efface une décision de mot
+ * Efface une décision de mot (mémoire seulement)
  */
-export function clearWordDecision() {
+export async function clearWordDecision() {
     const verseNumber = parseInt(document.getElementById('word-verse-input').value);
     const posIndex = parseInt(document.getElementById('word-position-input').value);
     const key = `${verseNumber}-${posIndex}`;
@@ -426,12 +469,588 @@ export function clearWordDecision() {
     }
     
     // Fermer le modal
+    document.activeElement?.blur();
     const modal = bootstrap.Modal.getInstance(document.getElementById('wordClassifyModal'));
-    modal.hide();
+    if (modal) modal.hide();
     
     displayCollationResults();
+}
+
+/**
+ * Charge les décisions de mots depuis le serveur
+ */
+export async function loadWordDecisions() {
+    if (!appState.selectedWork || appState.selectedChapter === null) return;
+    
+    try {
+        const response = await fetch(
+            `/api/word-decisions/${appState.selectedWork}/${appState.selectedChapter}`
+        );
+        const data = await response.json();
+        
+        if (data.status === 'success' && data.decisions) {
+            collationState.wordDecisions = {};
+            for (const dec of data.decisions) {
+                const key = `${dec.verse_number}-${dec.position}`;
+                collationState.wordDecisions[key] = dec;
+            }
+            // Garder une copie pour pouvoir annuler
+            collationState.savedWordDecisions = JSON.parse(JSON.stringify(collationState.wordDecisions));
+        }
+    } catch (error) {
+        console.error('Erreur chargement décisions mots:', error);
+    }
+}
+
+/**
+ * Affiche la liste des variantes conservées
+ */
+export function showConservedVariants() {
+    const decisions = collationState.wordDecisions || {};
+    const conserved = Object.values(decisions).filter(d => d.action === 'conserver');
+    
+    // Trier par vers puis par position
+    conserved.sort((a, b) => {
+        if (a.verse_number !== b.verse_number) return a.verse_number - b.verse_number;
+        return a.position - b.position;
+    });
+    
+    // Créer ou récupérer le modal de liste
+    let listModal = document.getElementById('conservedVariantsModal');
+    if (!listModal) {
+        createConservedVariantsModal();
+        listModal = document.getElementById('conservedVariantsModal');
+    }
+    
+    const tbody = document.getElementById('conserved-variants-tbody');
+    const countBadge = document.getElementById('conserved-variants-count');
+    const witnessNames = collationState.results?.witnesses || ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    
+    // Mettre à jour les en-têtes avec les noms de témoins
+    for (let i = 0; i < 3; i++) {
+        const th = document.getElementById(`conserved-th-witness-${i}`);
+        if (th) th.textContent = witnessNames[i];
+    }
+    
+    if (countBadge) countBadge.textContent = conserved.length;
+    
+    if (tbody) {
+        if (conserved.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Aucune variante conservée</td></tr>';
+        } else {
+            tbody.innerHTML = conserved.map(dec => {
+                const page = dec.pages ? Object.values(dec.pages).filter(p => p).join(', ') : '-';
+                const chapterIdx = appState.selectedChapter ?? '';
+                const words = witnessNames.map(name => dec.words?.[name] || '').map(
+                    w => `<td>${w || '-'}</td>`
+                ).join('');
+                
+                return `<tr>
+                    <td>${chapterIdx}</td>
+                    <td>${page}</td>
+                    <td>${dec.verse_number}</td>
+                    ${words}
+                    <td><small>${dec.explication || '-'}</small></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteConservedVariant(${dec.verse_number}, ${dec.position})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+    }
+    
+    const bsModal = bootstrap.Modal.getOrCreateInstance(listModal);
+    bsModal.show();
+}
+
+/**
+ * Crée le modal de liste des variantes conservées
+ */
+function createConservedVariantsModal() {
+    const modalHTML = `
+    <div class="modal fade" id="conservedVariantsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-success bg-opacity-10">
+                    <h5 class="modal-title">
+                        <i class="bi bi-bookmark-check"></i> Variantes conservées
+                        <span class="badge bg-success ms-2" id="conserved-variants-count">0</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    <table class="table table-sm table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Chapitre</th>
+                                <th>Page</th>
+                                <th>Vers</th>
+                                <th id="conserved-th-witness-0">Témoin 1</th>
+                                <th id="conserved-th-witness-1">Témoin 2</th>
+                                <th id="conserved-th-witness-2">Témoin 3</th>
+                                <th>Description</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="conserved-variants-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+/**
+ * Supprime une décision depuis la liste (mémoire seulement)
+ */
+function deleteConservedVariant(verseNumber, posIndex) {
+    const key = `${verseNumber}-${posIndex}`;
+    if (collationState.wordDecisions) {
+        delete collationState.wordDecisions[key];
+    }
+    
+    // Rafraîchir la liste
+    showConservedVariants();
+    displayCollationResults();
+}
+
+/**
+ * Supprime une décision depuis le dialogue des décisions en cours
+ */
+function deleteCurrentDecision(verseNumber, posIndex) {
+    const key = `${verseNumber}-${posIndex}`;
+    if (collationState.wordDecisions) {
+        delete collationState.wordDecisions[key];
+    }
+    
+    // Rafraîchir la liste des décisions en cours
+    showCurrentDecisions();
+    displayCollationResults();
+}
+window.deleteCurrentDecision = deleteCurrentDecision;
+
+/**
+ * Affiche le dialogue des nouvelles décisions de la séance (pas encore enregistrées)
+ */
+export function showCurrentDecisions() {
+    const current = collationState.wordDecisions || {};
+    const saved = collationState.savedWordDecisions || {};
+    
+    // Collecter les décisions nouvelles/modifiées
+    const pending = [];
+    for (const [key, dec] of Object.entries(current)) {
+        if (!saved[key] || JSON.stringify(saved[key]) !== JSON.stringify(dec)) {
+            pending.push({ ...dec, _changeType: saved[key] ? 'modifié' : 'nouveau' });
+        }
+    }
+    // Collecter les suppressions
+    for (const [key, dec] of Object.entries(saved)) {
+        if (!current[key]) {
+            pending.push({ ...dec, _changeType: 'supprimé' });
+        }
+    }
+    
+    // Trier par vers puis par position
+    pending.sort((a, b) => {
+        if (a.verse_number !== b.verse_number) return a.verse_number - b.verse_number;
+        return a.position - b.position;
+    });
+    
+    // Créer ou récupérer le modal
+    let listModal = document.getElementById('currentDecisionsModal');
+    if (!listModal) {
+        createCurrentDecisionsModal();
+        listModal = document.getElementById('currentDecisionsModal');
+    }
+    
+    const tbody = document.getElementById('current-decisions-tbody');
+    const countBadge = document.getElementById('current-decisions-count');
+    const witnessNames = collationState.results?.witnesses || ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    
+    // Mettre à jour les en-têtes avec les noms de témoins
+    for (let i = 0; i < 3; i++) {
+        const th = document.getElementById(`current-dec-th-witness-${i}`);
+        if (th) th.textContent = witnessNames[i];
+    }
+    
+    if (countBadge) countBadge.textContent = pending.length;
+    
+    if (tbody) {
+        if (pending.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Aucune nouvelle décision</td></tr>';
+        } else {
+            tbody.innerHTML = pending.map(dec => {
+                const page = dec.pages ? Object.values(dec.pages).filter(p => p).join(', ') : '-';
+                const chapterIdx = appState.selectedChapter ?? '';
+                const words = witnessNames.map(name => dec.words?.[name] || '').map(
+                    w => `<td>${w || '-'}</td>`
+                ).join('');
+                
+                const actionBadge = dec.action === 'conserver'
+                    ? '<span class="badge bg-success">conserver</span>'
+                    : '<span class="badge bg-secondary">ignorer</span>';
+                
+                const deleteBtn = dec._changeType !== 'supprimé'
+                    ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteCurrentDecision(${dec.verse_number}, ${dec.position})"><i class="bi bi-trash"></i></button>`
+                    : '';
+                
+                return `<tr${dec._changeType === 'supprimé' ? ' class="table-danger"' : ''}>
+                    <td>${chapterIdx}</td>
+                    <td>${page}</td>
+                    <td>${dec.verse_number}</td>
+                    ${words}
+                    <td>${actionBadge}</td>
+                    <td><small>${dec.explication || '-'}</small></td>
+                    <td>${deleteBtn}</td>
+                </tr>`;
+            }).join('');
+        }
+    }
+    
+    const bsModal = bootstrap.Modal.getOrCreateInstance(listModal);
+    bsModal.show();
+}
+
+/**
+ * Crée le modal de liste des décisions en cours
+ */
+function createCurrentDecisionsModal() {
+    const modalHTML = `
+    <div class="modal fade" id="currentDecisionsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-info bg-opacity-10">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil-square"></i> Décisions en cours
+                        <span class="badge bg-info ms-2" id="current-decisions-count">0</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    <table class="table table-sm table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Chapitre</th>
+                                <th>Page</th>
+                                <th>Vers</th>
+                                <th id="current-dec-th-witness-0">Témoin 1</th>
+                                <th id="current-dec-th-witness-1">Témoin 2</th>
+                                <th id="current-dec-th-witness-2">Témoin 3</th>
+                                <th>Action</th>
+                                <th>Description</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="current-decisions-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+/**
+ * Bascule le switch ignorer/conserver
+ */
+function toggleWordAction(action) {
+    setWordActionSwitch(action);
+}
+
+/**
+ * Positionne le switch sur la valeur donnée
+ */
+function setWordActionSwitch(action) {
+    const hiddenInput = document.getElementById('word-action-value');
+    const slider = document.getElementById('word-action-slider');
+    const ignorerLabel = document.getElementById('word-action-ignorer-label');
+    const conserverLabel = document.getElementById('word-action-conserver-label');
+    
+    if (!hiddenInput || !slider) return;
+    
+    hiddenInput.value = action;
+    
+    if (action === 'conserver') {
+        slider.classList.add('left');
+        slider.classList.remove('right');
+        conserverLabel.classList.add('active');
+        ignorerLabel.classList.remove('active');
+    } else {
+        slider.classList.remove('left');
+        slider.classList.add('right');
+        ignorerLabel.classList.add('active');
+        conserverLabel.classList.remove('active');
+    }
 }
 
 // Exposer les fonctions globalement pour les boutons onclick
 window.saveWordDecision = saveWordDecision;
 window.clearWordDecision = clearWordDecision;
+window.deleteConservedVariant = deleteConservedVariant;
+window.showConservedVariants = showConservedVariants;
+window.showCurrentDecisions = showCurrentDecisions;
+window.toggleWordAction = toggleWordAction;
+window.openExportModal = openExportModal;
+window.executeExport = executeExport;
+window.saveAllDecisions = saveAllDecisions;
+window.cancelAllDecisions = cancelAllDecisions;
+
+/**
+ * Enregistre toutes les décisions de mots sur le serveur
+ */
+export async function saveAllDecisions() {
+    if (!appState.selectedWork || appState.selectedChapter === null) return;
+    
+    const decisions = collationState.wordDecisions || {};
+    const entries = Object.values(decisions);
+    
+    if (entries.length === 0) {
+        alert('Aucune décision à enregistrer.');
+        return;
+    }
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    // D'abord supprimer les anciennes décisions serveur qui ne sont plus en mémoire
+    const savedKeys = Object.keys(collationState.savedWordDecisions || {});
+    const currentKeys = Object.keys(decisions);
+    const deletedKeys = savedKeys.filter(k => !currentKeys.includes(k));
+    
+    for (const key of deletedKeys) {
+        const old = collationState.savedWordDecisions[key];
+        try {
+            await fetch(`/api/word-decisions/${appState.selectedWork}/${appState.selectedChapter}/${old.verse_number}/${old.position}`, {
+                method: 'DELETE'
+            });
+        } catch (e) {
+            console.error('Erreur suppression:', e);
+        }
+    }
+    
+    // Sauvegarder chaque décision
+    for (const dec of entries) {
+        try {
+            const response = await fetch('/api/word-decisions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    work_id: appState.selectedWork,
+                    chapter_index: appState.selectedChapter,
+                    verse_number: dec.verse_number,
+                    position: dec.position,
+                    action: dec.action,
+                    explication: dec.explication || null,
+                    words: dec.words,
+                    pages: dec.pages
+                })
+            });
+            const data = await response.json();
+            if (data.status === 'success') successCount++;
+            else errorCount++;
+        } catch (e) {
+            errorCount++;
+            console.error('Erreur sauvegarde:', e);
+        }
+    }
+    
+    // Mettre à jour le snapshot sauvegardé
+    collationState.savedWordDecisions = JSON.parse(JSON.stringify(decisions));
+    
+    if (errorCount === 0) {
+        alert(`${successCount} décision(s) enregistrée(s) avec succès.`);
+    } else {
+        alert(`${successCount} enregistrée(s), ${errorCount} erreur(s).`);
+    }
+}
+
+/**
+ * Annule toutes les décisions non enregistrées (revient au dernier état sauvegardé)
+ */
+export function cancelAllDecisions() {
+    if (!confirm('Annuler toutes les modifications non enregistrées ?')) return;
+    
+    // Restaurer depuis le snapshot
+    collationState.wordDecisions = JSON.parse(
+        JSON.stringify(collationState.savedWordDecisions || {})
+    );
+    
+    displayCollationResults();
+}
+
+/**
+ * Ouvre le modal d'export
+ */
+export function openExportModal() {
+    let modal = document.getElementById('exportModal');
+    if (!modal) {
+        createExportModal();
+        modal = document.getElementById('exportModal');
+    }
+    
+    // Nom de fichier par défaut
+    const workName = appState.selectedWork || 'export';
+    const defaultName = `${workName}`;
+    const filenameInput = document.getElementById('export-filename');
+    if (filenameInput) {
+        filenameInput.value = defaultName;
+        // Au clic, effacer la suggestion pour repartir de zéro
+        filenameInput.onclick = function() {
+            if (this.value === defaultName) {
+                this.value = '';
+            }
+            this.onclick = null; // une seule fois
+        };
+    }
+    
+    // Sélection par défaut : CSV
+    const formatSelect = document.getElementById('export-format');
+    if (formatSelect) formatSelect.value = 'csv';
+    
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+    bsModal.show();
+}
+
+/**
+ * Crée le modal d'export
+ */
+function createExportModal() {
+    const modalHTML = `
+    <div class="modal fade" id="exportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-download"></i> Exporter les variantes conservées</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="export-filename" class="form-label"><strong>Nom du fichier :</strong></label>
+                        <input type="text" class="form-control" id="export-filename" placeholder="Nom du fichier">
+                    </div>
+                    <div class="mb-3">
+                        <label for="export-format" class="form-label"><strong>Format :</strong></label>
+                        <select class="form-select" id="export-format">
+                            <option value="csv">CSV</option>
+                            <option value="json">JSON</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-success" onclick="executeExport()">
+                        <i class="bi bi-download"></i> Télécharger
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+/**
+ * Prépare les données d'export (variantes conservées)
+ */
+function getExportData() {
+    const decisions = collationState.wordDecisions || {};
+    const conserved = Object.values(decisions).filter(d => d.action === 'conserver');
+    const witnessNames = collationState.results?.witnesses || ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    
+    conserved.sort((a, b) => {
+        if (a.verse_number !== b.verse_number) return a.verse_number - b.verse_number;
+        return a.position - b.position;
+    });
+    
+    return conserved.map(dec => {
+        const page = dec.pages ? Object.values(dec.pages).filter(p => p).join(', ') : '';
+        const chapterIdx = appState.selectedChapter ?? '';
+        const row = {
+            Chapitre: chapterIdx,
+            Page: page || '',
+            Vers: dec.verse_number
+        };
+        witnessNames.forEach(name => {
+            row[name] = dec.words?.[name] || '';
+        });
+        row['Description'] = dec.explication || '';
+        return row;
+    });
+}
+
+/**
+ * Exécute l'export dans le format choisi
+ */
+export function executeExport() {
+    const filename = document.getElementById('export-filename')?.value?.trim() || 'export';
+    const format = document.getElementById('export-format')?.value || 'json';
+    const data = getExportData();
+    
+    if (data.length === 0) {
+        alert('Aucune variante conservée \u00e0 exporter.');
+        return;
+    }
+    
+    let blob, ext;
+    
+    if (format === 'json') {
+        const json = JSON.stringify(data, null, 2);
+        blob = new Blob([json], { type: 'application/json' });
+        ext = 'json';
+    } else if (format === 'csv') {
+        const csv = convertToCSV(data);
+        // BOM pour Excel
+        blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+        ext = 'csv';
+    } else if (format === 'excel') {
+        const csv = convertToCSV(data, '\t');
+        blob = new Blob(['\uFEFF' + csv], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        ext = 'xls';
+    }
+    
+    // Télécharger
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Fermer le modal
+    document.activeElement?.blur();
+    const modal = bootstrap.Modal.getInstance(document.getElementById('exportModal'));
+    if (modal) modal.hide();
+}
+
+/**
+ * Convertit un tableau d'objets en CSV
+ */
+function convertToCSV(data, separator = ',') {
+    if (!data.length) return '';
+    const headers = Object.keys(data[0]);
+    const escape = (val) => {
+        const str = String(val ?? '');
+        if (str.includes(separator) || str.includes('"') || str.includes('\n')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    };
+    const lines = [
+        headers.map(escape).join(separator),
+        ...data.map(row => headers.map(h => escape(row[h])).join(separator))
+    ];
+    return lines.join('\n');
+}

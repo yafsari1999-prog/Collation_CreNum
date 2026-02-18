@@ -10,15 +10,11 @@ import * as API from './api.js';
  * Charge les témoins d'une œuvre
  */
 export async function loadWitnesses(workId) {
-    console.log('loadWitnesses appelé pour workId:', workId);
     try {
         const data = await API.fetchWitnesses(workId);
         
-        console.log('Réponse API témoins:', data);
-        
         if (data.status === 'success') {
             appState.witnesses = data.witnesses;
-            console.log('Témoins chargés:', appState.witnesses);
             await updateWitnessesList();
         }
     } catch (error) {
@@ -108,7 +104,6 @@ export async function updateWitnessesList() {
     
     // Cocher automatiquement les 3 premiers témoins si aucun n'est sélectionné
     const selectedCount = appState.selectedWitnesses.filter(w => w !== null).length;
-    console.log('Nombre de témoins déjà sélectionnés:', selectedCount);
     
     if (selectedCount === 0 && sortedWitnesses.length > 0) {
         const witnessesToSelect = sortedWitnesses.slice(0, Math.min(3, sortedWitnesses.length));
@@ -120,21 +115,15 @@ export async function updateWitnessesList() {
                 checkbox.checked = true;
             }
         });
-        
-        console.log('Témoins sélectionnés par défaut:', appState.selectedWitnesses);
     }
     
     // Vérifier si on a exactement 3 témoins sélectionnés pour activer la section chapitres
     const finalSelectedCount = appState.selectedWitnesses.filter(w => w !== null).length;
-    console.log('Nombre final de témoins sélectionnés:', finalSelectedCount);
     
     if (finalSelectedCount === 3) {
-        console.log('3 témoins cochés, chargement des chapitres...');
         await loadChapters();
         enableChapterSection();
-        console.log('Étape 3 activée');
     } else {
-        console.log('Moins de 3 témoins, désactivation de l\'étape 3');
         disableChapterSection();
     }
 }
@@ -171,8 +160,6 @@ export function onWitnessCheckboxChanged(event, witnessId) {
         }
     }
     
-    console.log('Témoins sélectionnés:', appState.selectedWitnesses);
-    
     // Vérifier si 3 témoins sont sélectionnés
     const allSelected = appState.selectedWitnesses.filter(w => w !== null).length === 3;
     
@@ -198,7 +185,7 @@ export function openAddWitnessModal() {
     document.getElementById('add-witness-form').reset();
     document.getElementById('witness-name').value = '';
     
-    new bootstrap.Modal(document.getElementById('addWitnessModal')).show();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('addWitnessModal')).show();
 }
 
 /**
@@ -225,7 +212,6 @@ export function updateWitnessNameFromFile() {
             .join(' ');
         
         nameInput.value = fileName;
-        console.log('Nom du témoin pré-rempli:', fileName);
     }
 }
 
@@ -257,6 +243,7 @@ export async function addWitness() {
         
         if (data.status === 'success') {
             // Fermer le modal
+            document.activeElement?.blur();
             bootstrap.Modal.getInstance(document.getElementById('addWitnessModal')).hide();
             
             // Réinitialiser le formulaire
@@ -291,7 +278,7 @@ export function openEditWitnessModal(witness) {
     document.getElementById('edit-witness-id').value = witness.id;
     document.getElementById('edit-witness-name').value = witness.name;
     
-    const modal = new bootstrap.Modal(document.getElementById('editWitnessModal'));
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('editWitnessModal'));
     modal.show();
 }
 
@@ -313,6 +300,7 @@ export async function updateWitness() {
         
         if (data.status === 'success') {
             // Fermer la modal
+            document.activeElement?.blur();
             const modal = bootstrap.Modal.getInstance(document.getElementById('editWitnessModal'));
             modal.hide();
             
@@ -335,7 +323,7 @@ export function confirmDeleteWitness(witness) {
     document.getElementById('delete-witness-id').value = witness.id;
     document.getElementById('delete-witness-name').textContent = witness.name;
     
-    const modal = new bootstrap.Modal(document.getElementById('deleteWitnessModal'));
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteWitnessModal'));
     modal.show();
 }
 
@@ -351,6 +339,7 @@ export async function deleteWitness() {
         
         if (data.status === 'success') {
             // Fermer la modal
+            document.activeElement?.blur();
             const modal = bootstrap.Modal.getInstance(document.getElementById('deleteWitnessModal'));
             modal.hide();
             
@@ -390,7 +379,6 @@ export function enableWitnessesSection() {
     if (witnessSelection) {
         witnessSelection.style.display = 'block';
     }
-    console.log('Section témoins activée');
 }
 
 /**

@@ -199,3 +199,91 @@ class DecisionManager:
             'qualifications': qualifications,
             'last_modified': decisions.get('last_modified')
         }
+
+
+class WordDecisionManager:
+    """Gère les décisions au niveau mot (ignorer / conserver)."""
+    
+    def __init__(self, decisions_dir='../data/decisions'):
+        self.decisions_dir = decisions_dir
+        os.makedirs(decisions_dir, exist_ok=True)
+    
+    def _get_file(self, work_id, chapter_index):
+        """Fichier dédié aux décisions de mots."""
+        filename = f"{work_id}_chapter_{chapter_index}_words.json"
+        return os.path.join(self.decisions_dir, filename)
+    
+    def _load(self, work_id, chapter_index):
+        file_path = self._get_file(work_id, chapter_index)
+        if not os.path.exists(file_path):
+            return {'work_id': work_id, 'chapter_index': chapter_index, 'decisions': []}
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Erreur chargement décisions mots: {e}")
+            return {'work_id': work_id, 'chapter_index': chapter_index, 'decisions': []}
+    
+    def _save(self, work_id, chapter_index, data):
+        file_path = self._get_file(work_id, chapter_index)
+        data['last_modified'] = datetime.now().isoformat()
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    
+    def save_word_decision(self, work_id, chapter_index, verse_number, position,
+                           action, explication=None, words=None, pages=None):
+        """
+        Sauvegarde une décision pour un mot.
+        
+        Args:
+            work_id: ID de l'œuvre
+            chapter_index: Index du chapitre
+            verse_number: Numéro du vers
+            position: Index de position du mot dans l'alignement
+            action: 'conserver' ou 'ignorer'
+            explication: Texte d'explication (optionnel)
+            words: Dict {witness_name: word_text}
+            pages: Dict {witness_name: page_number}
+        """
+        data = self._load(work_id, chapter_index)
+        
+        decision = {
+            'verse_number': verse_number,
+            'position': position,
+            'action': action,
+            'explication': explication,
+            'words': words or {},
+            'pages': pages or {},
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Remplacer si existant
+        existing_idx = None
+        for i, dec in enumerate(data['decisions']):
+            if dec['verse_number'] == verse_number and dec['position'] == position:
+                existing_idx = i
+                break
+        
+        if existing_idx is not None:
+            data['decisions'][existing_idx] = decision
+        else:
+            data['decisions'].append(decision)
+        
+        self._save(work_id, chapter_index, data)
+        return True
+    
+    def load_word_decisions(self, work_id, chapter_index):
+        """Charge toutes les décisions de mots pour un chapitre."""
+        data = self._load(work_id, chapter_index)
+        return data.get('decisions', [])
+    
+    def delete_word_decision(self, work_id, chapter_index, verse_number, position):
+        """Supprime une décision de mot."""
+        data = self._load(work_id, chapter_index)
+        original = len(data['decisions'])
+        data['decisions'] = [
+            d for d in data['decisions']
+            if not (d['verse_number'] == verse_number and d['position'] == position)
+        ]
+        self._save(work_id, chapter_index, data)
+        return len(data['decisions']) < original

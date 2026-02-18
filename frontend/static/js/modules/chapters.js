@@ -30,7 +30,6 @@ export async function loadChapters() {
                 const defaultValue = data.chapters[0].index.toString();
                 select.value = defaultValue;
                 appState.selectedChapter = defaultValue;
-                console.log('Chapitre 1 sélectionné par défaut:', data.chapters[0].label);
             }
         }
     } catch (error) {
@@ -42,7 +41,6 @@ export async function loadChapters() {
  * Active la section chapitres
  */
 export function enableChapterSection() {
-    console.log('enableChapterSection appelé');
     const messageP = document.querySelector('#chapter-section > p');
     const chapterSelection = document.getElementById('chapter-selection');
     
@@ -52,7 +50,6 @@ export function enableChapterSection() {
     if (chapterSelection) {
         chapterSelection.style.display = 'block';
     }
-    console.log('Section chapitres activée - visible:', chapterSelection ? chapterSelection.style.display : 'n/a');
 }
 
 /**
@@ -78,7 +75,6 @@ export function disableChapterSection() {
  */
 export function onChapterSelected(event) {
     appState.selectedChapter = event.target.value || null;
-    console.log('Chapitre sélectionné:', appState.selectedChapter);
 }
 
 /**

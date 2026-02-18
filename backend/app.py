@@ -9,7 +9,7 @@ import json
 import os
 from works import WorkManager
 from collate import perform_collation
-from decisions import DecisionManager
+from decisions import DecisionManager, WordDecisionManager
 
 app = Flask(__name__, 
             template_folder='../frontend/templates',
@@ -25,6 +25,7 @@ work_manager = WorkManager()
 
 # Initialiser le gestionnaire de décisions
 decision_manager = DecisionManager()
+word_decision_manager = WordDecisionManager()
 
 def allowed_file(filename):
     """Vérifie si le fichier est un JSON."""
@@ -323,6 +324,70 @@ def handle_annotations():
         return save_decision()
     else:
         return jsonify({"annotations": []})
+
+
+# ===== API Décisions de mots =====
+
+@app.route('/api/word-decisions', methods=['POST'])
+def save_word_decision():
+    """
+    Sauvegarde une décision de mot (conserver / ignorer).
+    Attend: {work_id, chapter_index, verse_number, position, action, explication, words, pages}
+    """
+    data = request.json
+    
+    work_id = data.get('work_id')
+    chapter_index = data.get('chapter_index')
+    verse_number = data.get('verse_number')
+    position = data.get('position')
+    action = data.get('action', 'conserver')
+    
+    if not all([work_id, chapter_index is not None, verse_number is not None, position is not None]):
+        return jsonify({"status": "error", "message": "Paramètres manquants"}), 400
+    
+    try:
+        word_decision_manager.save_word_decision(
+            work_id=work_id,
+            chapter_index=chapter_index,
+            verse_number=verse_number,
+            position=position,
+            action=action,
+            explication=data.get('explication'),
+            words=data.get('words'),
+            pages=data.get('pages')
+        )
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/word-decisions/<work_id>/<int:chapter_index>', methods=['GET'])
+def get_word_decisions(work_id, chapter_index):
+    """
+    Récupère toutes les décisions de mots pour un chapitre.
+    """
+    try:
+        decisions = word_decision_manager.load_word_decisions(work_id, chapter_index)
+        return jsonify({"status": "success", "decisions": decisions})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/word-decisions/<work_id>/<int:chapter_index>/<int:verse_number>/<int:position>', methods=['DELETE'])
+def delete_word_decision(work_id, chapter_index, verse_number, position):
+    """
+    Supprime une décision de mot.
+    """
+    try:
+        success = word_decision_manager.delete_word_decision(
+            work_id, chapter_index, verse_number, position
+        )
+        if success:
+            return jsonify({"status": "success"})
+        else:
+            return jsonify({"status": "error", "message": "Décision non trouvée"}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 if __name__ == '__main__':

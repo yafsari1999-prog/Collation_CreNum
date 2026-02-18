@@ -17,54 +17,11 @@ import { openQualifyModal, saveDecision, clearDecision, saveAllDecisions } from 
  * Configure tous les event listeners de l'application
  */
 export function setupEventListeners() {
-    console.log('Configuration des événements...');
-    
     // Sélection du chapitre
     const chapterSelect = document.getElementById('chapter-select');
     if (chapterSelect) {
         chapterSelect.addEventListener('change', onChapterSelected);
-        console.log('✓ Event listener attaché au sélecteur de chapitre');
     }
-    
-    // Bouton ajouter œuvre
-    const addWorkBtn = document.getElementById('addWorkBtn');
-    if (addWorkBtn) {
-        addWorkBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            addWork();
-        });
-        console.log('✓ Event listener attaché au bouton Ajouter œuvre');
-    }
-    
-    // Bouton ajouter témoin
-    const addWitnessBtn = document.getElementById('addWitnessBtn');
-    if (addWitnessBtn) {
-        addWitnessBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            addWitness();
-        });
-        console.log('✓ Event listener attaché au bouton Ajouter témoin');
-    }
-    
-    // Bouton lancer collation
-    const collateBtn = document.getElementById('btn-collate');
-    if (collateBtn) {
-        collateBtn.addEventListener('click', function(e) {
-            console.log('Bouton Lancer collation cliqué');
-            e.preventDefault();
-            launchCollation();
-        });
-        console.log('✓ Event listener attaché au bouton Lancer collation');
-    }
-    
-    // Input fichier pour pré-remplir le nom du témoin
-    const witnessFileInput = document.getElementById('witness-file');
-    if (witnessFileInput) {
-        witnessFileInput.addEventListener('change', updateWitnessNameFromFile);
-        console.log('✓ Event listener attaché au sélecteur de fichier');
-    }
-    
-    console.log('Configuration des événements terminée');
 }
 
 /**

@@ -10,8 +10,6 @@ exposeGlobalFunctions();
 
 // Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Application modulaire chargée');
     loadWorks();
     setupEventListeners();
-    console.log('✓ Initialisation terminée');
 });

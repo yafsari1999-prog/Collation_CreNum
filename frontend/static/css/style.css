@@ -1,5 +1,77 @@
 /* Styles pour l'interface de collation */
 
+/* ===== Switch Ignorer / Conserver ===== */
+.word-action-switch {
+    position: relative;
+    display: flex;
+    width: 260px;
+    height: 42px;
+    border-radius: 21px;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    background: #e9ecef;
+    margin: 0 auto;
+}
+
+.word-action-slider {
+    position: absolute;
+    top: 3px;
+    width: 50%;
+    height: calc(100% - 6px);
+    border-radius: 18px;
+    transition: left 0.3s ease, background-color 0.3s ease;
+    z-index: 1;
+}
+
+.word-action-slider.left,
+.word-action-slider:not(.right) {
+    left: 3px;
+    width: calc(50% - 3px);
+    background: #198754;
+}
+
+.word-action-slider.right {
+    left: calc(50% - 3px);
+    width: calc(50% - 3px + 3px);
+    background: #dc3545;
+}
+
+.word-action-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: color 0.3s ease;
+    color: #6c757d;
+}
+
+.word-action-option.active {
+    color: #fff;
+}
+
+.word-action-ignorer {
+    padding-left: 4px;
+}
+
+.word-action-conserver {
+    padding-right: 4px;
+}
+
+/* Badge cliquable */
+.badge-clickable {
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+.badge-clickable:hover {
+    opacity: 0.85;
+    transform: scale(1.05);
+}
+
 body {
     padding: 20px;
     background-color: #f8f9fa;
@@ -181,7 +253,7 @@ body {
 /* Grille de collation */
 .collation-header {
     display: grid;
-    grid-template-columns: 80px 1fr 1fr 1fr 120px;
+    grid-template-columns: 80px 1fr 1fr 1fr 60px;
     gap: 10px;
     padding: 15px;
     background-color: #f8f9fa;
@@ -204,7 +276,7 @@ body {
 /* Ligne de vers */
 .verse-row {
     display: grid;
-    grid-template-columns: 80px 1fr 1fr 1fr 120px;
+    grid-template-columns: 80px 1fr 1fr 1fr 60px;
     gap: 10px;
     padding: 15px;
     border-bottom: 1px solid #dee2e6;
@@ -220,6 +292,10 @@ body {
 }
 
 .verse-row.has-decision {
+    background-color: #d1e7dd;
+}
+
+.verse-row.all-words-decided {
     background-color: #d1e7dd;
 }
 
@@ -353,6 +429,27 @@ body {
 
 .word-token.word-variant:hover {
     background-color: #ffe69c;
+}
+
+/* Mot conservé */
+.word-token.word-decided {
+    background-color: #d1e7dd;
+    border-bottom: 2px solid #198754;
+}
+
+.word-token.word-decided:hover {
+    background-color: #a3cfbb;
+}
+
+/* Mot ignoré */
+.word-token.word-ignored {
+    background-color: #e2e3e5;
+    border-bottom: 2px solid #adb5bd;
+    color: #6c757d;
+}
+
+.word-token.word-ignored:hover {
+    background-color: #d3d6d8;
 }
 
 /* Surlignage synchronisé */
