@@ -116,15 +116,33 @@ chmod +x setup.sh start.sh
 
 ## Structure des Données
 
+### Organisation de vos Fichiers
+
 Placez vos fichiers JSON de témoins dans :
 ```
-data/input/votre_oeuvre/
+data/input/nom_de_votre_oeuvre/
+├── temoin1.json
+├── temoin2.json
+└── temoin3.json
 ```
 
-Configuration des œuvres dans :
+**Important :** L'application nécessite **exactement 3 témoins** par œuvre.
+
+### Configuration des Œuvres
+
+La configuration est gérée automatiquement dans :
 ```
 data/works.json
 ```
+
+### Sauvegarde des Décisions
+
+Vos annotations sont automatiquement sauvegardées dans :
+```
+data/decisions/{work_id}_chapter_{index}_words.json
+```
+
+**📖 Pour plus de détails sur le format des données, consultez [DONNEES.md](DONNEES.md)**
 
 ---
 
