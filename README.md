@@ -12,6 +12,11 @@ Outil web pour assister les chercheurs dans la comparaison de plusieurs versions
 - Qualification des différences
 - Gestion des équivalences orthographiques
 
+**📌 Caractéristique importante :**
+- L'application est conçue pour comparer **exactement 3 témoins (manuscrits)** en parallèle
+- Cette limitation est liée à l'optimisation de l'interface, de l'algorithme et du cas d'usage principal
+- Pour plus de détails, consultez le [Guide Utilisateur](GUIDE_UTILISATEUR.md#limitation-à-3-témoins)
+
 ---
 
 ## Installation
@@ -47,7 +52,9 @@ Puis ouvrir **http://localhost:5001** dans votre navigateur.
 
 ## Documentation
 
-Pour plus de détails sur l'installation, consultez [INSTALLATION.md](INSTALLATION.md).
+- **[INSTALLATION.md](INSTALLATION.md)** - Installation et configuration détaillées
+- **[GUIDE_UTILISATEUR.md](GUIDE_UTILISATEUR.md)** - Guide d'utilisation complet avec exemples
+- **[DONNEES.md](DONNEES.md)** - Format des données et structure des fichiers
 
 ---
 

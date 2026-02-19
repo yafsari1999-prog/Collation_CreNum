@@ -4,7 +4,23 @@ Ce document explique en détail la structure des fichiers de données utilisés 
 
 ---
 
-## 📁 Structure des Répertoires
+## � Workflow d'Utilisation
+
+**Vous n'avez pas besoin de manipuler directement les dossiers de l'application.**
+
+Workflow recommandé :
+1. **Lancez l'application** : `./start.sh`
+2. **Créez une œuvre** : Via l'interface web (bouton "Ajouter une nouvelle œuvre")
+3. **Ajoutez 3 témoins** : Via l'interface web (bouton "Ajouter un nouveau témoin")
+   - Sélectionnez vos fichiers JSON depuis n'importe quel emplacement sur votre ordinateur
+   - L'application enregistre automatiquement les fichiers dans ses dossiers internes
+4. **Lancez la collation** : Sélectionnez un chapitre et comparez les témoins
+
+> **💡 Astuce** : Cette documentation technique explique la structure interne des données. En tant qu'utilisateur, vous utilisez uniquement l'interface web.
+
+---
+
+## 📁 Structure des Répertoires (Interne)
 
 ```
 data/
@@ -25,13 +41,15 @@ data/
 #### 📂 `data/input/`
 Contient les fichiers JSON des témoins (manuscrits) organisés par œuvre.
 
-**Organisation recommandée :**
+**⚠️ Note importante :** Vous n'avez pas à créer ou manipuler ces dossiers manuellement. L'application gère automatiquement l'organisation des fichiers lorsque vous ajoutez des témoins via l'interface web.
+
+**Structure automatique créée :**
 ```
 data/input/
-└── mon_oeuvre/          # Nom de votre œuvre
-    ├── temoin_A.json    # Premier témoin
-    ├── temoin_B.json    # Deuxième témoin
-    └── temoin_C.json    # Troisième témoin
+└── mon_oeuvre/          # Créé automatiquement
+    ├── temoin_A.json    # Enregistré depuis l'interface
+    ├── temoin_B.json    # Enregistré depuis l'interface
+    └── temoin_C.json    # Enregistré depuis l'interface
 ```
 
 **Important :** L'application nécessite **exactement 3 témoins** pour fonctionner.
@@ -75,14 +93,14 @@ Les fichiers témoins sont au format JSON et représentent un manuscrit divisé 
       "text": "Prologue du quart volume",
       "alto_id": "6ac23492-6644-44ab-9b20-18fe64b27df2",
       "type": "default",
-      "page": "Chantilly_516004-002.xml"
+      "page": "manuscrit_page001.xml"
     },
     {
       "region": "MainZone",
       "text": "Il est ainsi que debte long temps deue.",
       "alto_id": "117fa277-f2bc-4fbc-a634-196352886fcd",
       "type": "default",
-      "page": "Chantilly_516004-002.xml"
+      "page": "manuscrit_page001.xml"
     }
   ],
   [
@@ -131,21 +149,21 @@ ALLOWED_REGIONS = ['MainZone', 'Rubric', 'Chapter']
       "text": "Prologue de ce volume",
       "alto_id": "80c9c4bf-3755-44e4-8d50-92e9c15d23e0",
       "type": "default",
-      "page": "BnFfr_1712_f11.xml"
+      "page": "manuscrit_page011.xml"
     },
     {
       "region": "MainZone",
       "text": "Il est ainsy que debte lonq temps deue.",
       "alto_id": "e6dcb392-e034-4ebb-8fbc-dfb5042d801a",
       "type": "default",
-      "page": "BnFfr_1712_f11.xml"
+      "page": "manuscrit_page011.xml"
     },
     {
       "region": "MainZone",
       "text": "Fasche a celluy qui la trop attendue.",
       "alto_id": "cfd6544a-14a1-4042-93d1-9fa6e3b649ac",
       "type": "default",
-      "page": "BnFfr_1712_f11.xml"
+      "page": "manuscrit_page011.xml"
     }
   ],
   [
@@ -154,14 +172,14 @@ ALLOWED_REGIONS = ['MainZone', 'Rubric', 'Chapter']
       "text": "Chapitre Premier",
       "alto_id": "...",
       "type": "default",
-      "page": "BnFfr_1712_f12.xml"
+      "page": "manuscrit_page012.xml"
     },
     {
       "region": "MainZone",
       "text": "Le premier vers du chapitre 1...",
       "alto_id": "...",
       "type": "default",
-      "page": "BnFfr_1712_f12.xml"
+      "page": "manuscrit_page012.xml"
     }
   ]
 ]
@@ -203,9 +221,9 @@ Exemples :
         "Témoin C": "assōme"
       },
       "pages": {
-        "Témoin A": "BnFfr_1712_f11.xml",
-        "Témoin B": "BnFfr_2820_f11.xml",
-        "Témoin C": "Chantilly_516004-002.xml"
+        "Témoin A": "manuscrit_A_page001.xml",
+        "Témoin B": "manuscrit_B_page001.xml",
+        "Témoin C": "manuscrit_C_page001.xml"
       },
       "timestamp": "2026-02-18T21:47:28.622221"
     }
@@ -288,7 +306,7 @@ Avant d'importer vos témoins dans l'application :
 - [ ] Chaque vers contient au minimum : `region`, `text`
 - [ ] Les types de `region` sont bien "MainZone", "Chapter", ou "Rubric"
 - [ ] Les chapitres sont dans le même ordre pour les 3 témoins
-- [ ] Les fichiers sont placés dans `data/input/[nom_oeuvre]/`
+- [ ] Les fichiers sont ajoutés via l'interface web (bouton "Ajouter un nouveau témoin")
 
 ---
 

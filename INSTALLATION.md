@@ -116,17 +116,27 @@ chmod +x setup.sh start.sh
 
 ## Structure des Données
 
-### Organisation de vos Fichiers
+### Ajout de vos Fichiers
 
-Placez vos fichiers JSON de témoins dans :
-```
-data/input/nom_de_votre_oeuvre/
-├── temoin1.json
-├── temoin2.json
-└── temoin3.json
-```
+**Vous n'avez pas besoin de manipuler les dossiers de l'application directement.**
 
-**Important :** L'application nécessite **exactement 3 témoins** par œuvre.
+Utilisez l'interface web pour :
+1. Créer une œuvre via le bouton "Ajouter une nouvelle œuvre"
+2. Ajouter vos fichiers JSON de témoins via le bouton "Ajouter un nouveau témoin"
+3. Sélectionner les fichiers depuis n'importe quel emplacement sur votre ordinateur
+
+Les fichiers seront automatiquement enregistrés dans l'application.
+
+### ⚠️ Limitation : Exactement 3 Témoins
+
+**L'application nécessite exactement 3 témoins par œuvre.**
+
+Cette limitation est liée à :
+- **Interface** : Affichage optimisé pour 3 colonnes parallèles
+- **Algorithme** : Collation tripartite avec CollateX
+- **Cas d'usage** : Méthodologie d'édition critique du projet CreNum
+
+> **💡 Pour en savoir plus** : Consultez la section [Limitation à 3 témoins](GUIDE_UTILISATEUR.md#limitation-à-3-témoins) du guide utilisateur.
 
 ### Configuration des Œuvres
 
@@ -148,9 +158,9 @@ data/decisions/{work_id}_chapter_{index}_words.json
 
 ## Documentation Complète
 
-- **README.md** - Vue d'ensemble du projet
-- **PLAN_AMELIORATIONS.md** - Plan détaillé des améliorations
-- **.github/instructions/** - Cahier des charges et instructions techniques
+- **[README.md](README.md)** - Vue d'ensemble du projet
+- **[GUIDE_UTILISATEUR.md](GUIDE_UTILISATEUR.md)** - Guide d'utilisation avec captures d'écran
+- **[DONNEES.md](DONNEES.md)** - Format des données et structure des fichiers
 
 ---
 
