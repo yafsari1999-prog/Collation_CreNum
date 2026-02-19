@@ -32,4 +32,4 @@ COLLATEX_CONFIG = {
 
 # Flask config
 FLASK_DEBUG = True
-FLASK_PORT = 5000
+FLASK_PORT = int(os.environ.get('FLASK_PORT', 5001))

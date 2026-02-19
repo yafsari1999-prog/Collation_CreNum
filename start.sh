@@ -33,17 +33,21 @@ fi
 echo -e "${GREEN}Activation de l'environnement virtuel...${NC}"
 source .venv/bin/activate
 
-# Vérifier que le port 5001 est libre
-if lsof -i :5001 > /dev/null 2>&1; then
-    echo -e "${YELLOW}Le port 5001 est déjà utilisé${NC}"
+# Définir le port (par défaut 5001, modifiable via variable d'environnement)
+PORT=${FLASK_PORT:-5001}
+
+# Vérifier que le port est libre
+if lsof -i :$PORT > /dev/null 2>&1; then
+    echo -e "${YELLOW}Le port $PORT est déjà utilisé${NC}"
     echo -n "Voulez-vous arrêter le processus existant ? (o/n) "
     read -r response
     if [[ "$response" =~ ^[Oo]$ ]]; then
-        echo "Arrêt du processus sur le port 5001..."
-        lsof -ti :5001 | xargs kill -9 2>/dev/null
+        echo "Arrêt du processus sur le port $PORT..."
+        lsof -ti :$PORT | xargs kill -9 2>/dev/null
         sleep 1
     else
         echo -e "${RED}Impossible de démarrer - port occupé${NC}"
+        echo -e "${YELLOW}Conseil: Utilisez un autre port avec: export FLASK_PORT=5002 && ./start.sh${NC}"
         exit 1
     fi
 fi
@@ -64,7 +68,7 @@ echo -e "${GREEN}=========================================="
 echo "  Démarrage du serveur Flask..."
 echo -e "==========================================${NC}"
 echo ""
-echo "URL: http://localhost:5001"
+echo "URL: http://localhost:$PORT"
 echo ""
 echo -e "${YELLOW}Appuyez sur Ctrl+C pour arrêter le serveur${NC}"
 echo ""

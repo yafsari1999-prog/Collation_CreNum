@@ -71,11 +71,29 @@ make help       # Voir toutes les commandes
 
 ### Le port 5001 est déjà utilisé
 
+Vous avez deux options :
+
+**Option 1 : Arrêter le processus existant**
+
 ```bash
-# Arrêter le processus existant
+# Arrêter le processus qui utilise le port 5001
 lsof -ti :5001 | xargs kill -9
 
-# Puis redémarrer
+# Puis redémarrer l'application
+./start.sh
+```
+
+**Option 2 : Modifier le port de l'application**
+
+1. Ouvrir le fichier `backend/config.py`
+2. Modifier la ligne `FLASK_PORT = 5001` avec le port souhaité (ex: `FLASK_PORT = 5002`)
+3. Sauvegarder et redémarrer l'application avec `./start.sh`
+4. L'application sera accessible sur le nouveau port (ex: `http://localhost:5002`)
+
+Alternativement, vous pouvez définir le port via une variable d'environnement :
+
+```bash
+export FLASK_PORT=5002
 ./start.sh
 ```
 
@@ -113,14 +131,14 @@ data/works.json
 ## Documentation Complète
 
 - **README.md** - Vue d'ensemble du projet
-- **README_UTILISATION.md** - Guide détaillé d'utilisation
+- **PLAN_AMELIORATIONS.md** - Plan détaillé des améliorations
 - **.github/instructions/** - Cahier des charges et instructions techniques
 
 ---
 
 ## Support
 
-Pour toute question ou problème, consultez d'abord la documentation dans `README_UTILISATION.md`.
+Pour toute question ou problème, consultez d'abord la documentation dans ce fichier ou ouvrez une issue sur GitHub.
 
 ---
 

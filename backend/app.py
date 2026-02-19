@@ -391,4 +391,5 @@ def delete_word_decision(work_id, chapter_index, verse_number, position):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    from config import FLASK_PORT
+    app.run(debug=True, port=FLASK_PORT)

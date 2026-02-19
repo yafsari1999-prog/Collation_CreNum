@@ -58,6 +58,17 @@ Pour plus de détails sur l'installation, consultez [INSTALLATION.md](INSTALLATI
 
 ---
 
+## Sources et Remerciements
+
+Ce projet s'inspire des travaux de recherche du projet CreNum et utilise :
+
+- **CollateX** - Outil de collation automatique développé par l'Initiative for Digital Humanities, Media Studies, and Empirical Cultural Studies
+- **Prototype collatex-crenum** - Travaux préliminaires disponibles sur [GitLab UGA](https://gricad-gitlab.univ-grenoble-alpes.fr/elan/collation/collatex-crenum)
+
+Nous remercions l'équipe du projet CreNum pour leur accompagnement et leurs retours précieux.
+
+---
+
 ## Équipe
 
 **Développeurs :**
