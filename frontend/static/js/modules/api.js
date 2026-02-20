@@ -244,3 +244,23 @@ export async function deleteDecision(workId, chapterIndex, verseNumber) {
         handleFetchError(error);
     }
 }
+
+export async function countAllDecisions(workId) {
+    try {
+        const response = await fetch(`/api/count-decisions/${workId}`);
+        return await handleResponse(response);
+    } catch (error) {
+        handleFetchError(error);
+    }
+}
+
+export async function deleteAllDecisions(workId) {
+    try {
+        const response = await fetch(`/api/delete-all-decisions/${workId}`, {
+            method: 'DELETE'
+        });
+        return await handleResponse(response);
+    } catch (error) {
+        handleFetchError(error);
+    }
+}

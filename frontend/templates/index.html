@@ -15,12 +15,12 @@
             <p class="text-center text-muted">Comparaison de manuscrits en moyen français</p>
         </header>
 
-        <!-- Étape 1: Sélection de l'œuvre -->
+        <!-- Sélection de l'œuvre -->
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Étape 1 : Sélection de l'œuvre</h5>
+                        <h5 class="mb-0">Sélection de l'œuvre</h5>
                     </div>
                     <div class="card-body">
                         <label class="form-label">Choisir une œuvre existante</label>
@@ -37,12 +37,12 @@
             </div>
         </div>
 
-        <!-- Étape 2: Sélection des témoins -->
+        <!-- Sélection des témoins -->
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header bg-secondary text-white">
-                        <h5 class="mb-0">Étape 2 : Sélection des témoins (3 requis)</h5>
+                        <h5 class="mb-0">Sélection des témoins (3 requis)</h5>
                     </div>
                     <div class="card-body" id="witnesses-section">
                         <p class="text-muted">Veuillez d'abord sélectionner une œuvre</p>
@@ -63,12 +63,12 @@
             </div>
         </div>
 
-        <!-- Étape 3: Validation des chapitres -->
+        <!-- Validation des chapitres -->
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header bg-info text-white">
-                        <h5 class="mb-0">Étape 3 : Validation des chapitres</h5>
+                        <h5 class="mb-0">Validation des chapitres</h5>
                     </div>
                     <div class="card-body" id="validation-section">
                         <p class="text-muted">Veuillez d'abord sélectionner 3 témoins</p>
@@ -114,24 +114,19 @@
                                 </div>
                             </div>
                             
-                            <!-- Bouton Valider (visible seulement si chapitres incompatibles) -->
-                            <div class="mt-3 text-center">
-                                <button type="button" class="btn btn-primary btn-lg" id="btn-validate-chapters" onclick="validateAndProceed()">
-                                    <i class="bi bi-check-circle"></i> Valider
-                                </button>
-                            </div>
+                            <!-- Bouton Valider supprimé -->
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Étape 4: Sélection du chapitre -->
+        <!-- Sélection du chapitre -->
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header bg-secondary text-white">
-                        <h5 class="mb-0">Étape 4 : Sélection du chapitre</h5>
+                        <h5 class="mb-0">Sélection du chapitre</h5>
                     </div>
                     <div class="card-body" id="chapter-section">
                         <p class="text-muted">Veuillez d'abord valider les chapitres</p>
@@ -233,13 +228,22 @@
             </div>
         </div>
 
-        <!-- Bouton Exporter (en dehors de la card) -->
+        <!-- Export -->
         <div class="row mt-4 mb-4" id="export-section" style="display: none;">
-            <div class="col-md-12 text-center">
-                <button class="btn btn-primary btn-lg" onclick="openExportModal()">
-                    <i class="bi bi-download"></i> Exporter
-                </button>
-                <div class="text-muted small mt-1">Exporter l'ensemble des décisions pour <span id="export-work-name"></span></div>
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Export</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <button class="btn btn-success btn-lg" id="btn-export" onclick="openExportModal()" disabled>
+                            <i class="bi bi-download"></i> Exporter
+                        </button>
+                        <div id="export-decisions-count" class="small mt-2" style="display: none;">
+                            0 variantes conservées
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

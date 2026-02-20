@@ -287,3 +287,52 @@ class WordDecisionManager:
         ]
         self._save(work_id, chapter_index, data)
         return len(data['decisions']) < original
+    
+    def count_all_decisions(self, work_id):
+        """
+        Compte toutes les décisions de mots pour une œuvre.
+        
+        Args:
+            work_id: ID de l'œuvre
+            
+        Returns:
+            Nombre total de décisions
+        """
+        import glob
+        pattern = os.path.join(self.decisions_dir, f"{work_id}_chapter_*_words.json")
+        files = glob.glob(pattern)
+        
+        total = 0
+        for file_path in files:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    total += len(data.get('decisions', []))
+            except Exception as e:
+                print(f"Erreur lecture {file_path}: {e}")
+        
+        return total
+    
+    def delete_all_decisions(self, work_id):
+        """
+        Supprime toutes les décisions de mots pour une œuvre.
+        
+        Args:
+            work_id: ID de l'œuvre
+            
+        Returns:
+            Nombre de fichiers supprimés
+        """
+        import glob
+        pattern = os.path.join(self.decisions_dir, f"{work_id}_chapter_*_words.json")
+        files = glob.glob(pattern)
+        
+        deleted = 0
+        for file_path in files:
+            try:
+                os.remove(file_path)
+                deleted += 1
+            except Exception as e:
+                print(f"Erreur suppression {file_path}: {e}")
+        
+        return deleted

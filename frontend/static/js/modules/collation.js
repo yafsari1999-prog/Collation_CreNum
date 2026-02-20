@@ -75,12 +75,6 @@ export async function launchCollation() {
             collationLoading.style.display = 'none';
             collationTable.style.display = 'block';
             collationFooter.style.display = 'block';
-            
-            // Afficher la section export
-            const exportSection = document.getElementById('export-section');
-            if (exportSection) exportSection.style.display = 'block';
-            const exportWorkName = document.getElementById('export-work-name');
-            if (exportWorkName) exportWorkName.textContent = appState.selectedWork || '';
         } else {
             collationLoading.style.display = 'none';
             noResults.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
@@ -251,14 +245,13 @@ export function createVerseRow(verse) {
                         } else {
                             wordSpan.classList.add('word-variant');
                         }
+                        // Click: ouvrir modal seulement pour les variantes
+                        wordSpan.addEventListener('click', () => openWordClassifyModal(verse, posIndex));
                     }
                     
-                    // Hover: surligner dans les 3 témoins
+                    // Hover: surligner dans les 3 témoins (tous les mots)
                     wordSpan.addEventListener('mouseenter', () => highlightWordPosition(verse.verse_number, posIndex, true));
                     wordSpan.addEventListener('mouseleave', () => highlightWordPosition(verse.verse_number, posIndex, false));
-                    
-                    // Click: ouvrir modal de classification
-                    wordSpan.addEventListener('click', () => openWordClassifyModal(verse, posIndex));
                     
                     witnessDiv.appendChild(wordSpan);
                     witnessDiv.appendChild(document.createTextNode(' '));
@@ -271,9 +264,15 @@ export function createVerseRow(verse) {
                     gapSpan.textContent = '∅';
                     gapSpan.title = 'Mot absent dans ce témoin';
                     
+                    // Hover: surligner dans les 3 témoins (tous les mots)
                     gapSpan.addEventListener('mouseenter', () => highlightWordPosition(verse.verse_number, posIndex, true));
                     gapSpan.addEventListener('mouseleave', () => highlightWordPosition(verse.verse_number, posIndex, false));
-                    gapSpan.addEventListener('click', () => openWordClassifyModal(verse, posIndex));
+                    
+                    // Click: seulement pour les variantes
+                    if (position.has_variant) {
+                        gapSpan.classList.add('word-variant');
+                        gapSpan.addEventListener('click', () => openWordClassifyModal(verse, posIndex));
+                    }
                     
                     witnessDiv.appendChild(gapSpan);
                     witnessDiv.appendChild(document.createTextNode(' '));

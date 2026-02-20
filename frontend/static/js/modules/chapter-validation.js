@@ -103,27 +103,35 @@ function updateValidationSummary() {
     
     // Vérifier la compatibilité des chapitres actifs (avec les exclusions actuelles)
     const isCompatible = areChaptersCompatible(excludedChapters);
-    
+
     if (isCompatible) {
-        // Message de succès : chapitres compatibles
         html += '<div class="alert alert-success mt-3 mb-0">';
         html += '<i class="bi bi-check-circle-fill"></i> ';
         html += '<strong>Parfait !</strong> Tous les témoins ont le même nombre de chapitres actifs. ';
         html += 'Vous pouvez passer à la sélection du chapitre ci-dessous.';
         html += '</div>';
+        // Activer la sélection du chapitre
+        document.getElementById('chapter-selection').style.display = 'block';
+        document.querySelector('#chapter-section > p.text-muted').style.display = 'none';
     } else {
-        // Message d'avertissement : ajustement nécessaire
         html += '<div class="alert alert-warning mt-3 mb-0">';
         html += '<i class="bi bi-exclamation-triangle-fill"></i> ';
         html += '<strong>Attention :</strong> Le nombre de chapitres diffère entre les témoins. ';
-        html += 'Veuillez utiliser le bouton "Modifier les chapitres" pour ajuster la sélection.';
+        html += 'Veuillez utiliser le bouton \"Modifier les chapitres\" pour ajuster la sélection.';
         html += '</div>';
+        // Désactiver la sélection du chapitre
+        document.getElementById('chapter-selection').style.display = 'none';
+        document.querySelector('#chapter-section > p.text-muted').style.display = 'block';
+        document.querySelector('#chapter-section > p.text-muted').textContent = "Veuillez d'abord valider les chapitres";
     }
-    
+
+    // Toujours vérifier la compatibilité après chaque modification
+    // pour désactiver/activer dynamiquement la sélection du chapitre
+    // (déjà géré ci-dessus)
+
     html += '</div>';
-    
+
     summaryDiv.innerHTML = html;
-    updateValidateButton(); // Mettre à jour le bouton Valider
 }
 
 /**
@@ -277,12 +285,8 @@ function updateActionButtons() {
  * Cache le bouton si compatible, le montre sinon
  */
 function updateValidateButton() {
-    const validateBtn = document.getElementById('btn-validate-chapters');
-    if (!validateBtn) return;
-    
-    // Cacher le bouton Valider si les chapitres sont compatibles
-    const isCompatible = checkChaptersCompatibility();
-    validateBtn.parentElement.style.display = isCompatible ? 'none' : 'block';
+    // Fonction désormais inutile car le bouton Valider est supprimé
+    // Gardée vide pour compatibilité éventuelle
 }
 
 /**
@@ -316,11 +320,34 @@ function checkChaptersCompatibility() {
 
 /**
  * Sauvegarde la selection des chapitres et passe automatiquement a l'etape 4 si compatible
+ * Avertit l'utilisateur si des décisions existent et les supprime après confirmation
  */
 export async function saveChapterSelection() {
     const workId = appState.selectedWork;
     
     try {
+        // Vérifier si des décisions existent
+        const countResult = await API.countAllDecisions(workId);
+        const decisionsCount = countResult?.count || 0;
+        
+        if (decisionsCount > 0) {
+            // Afficher un avertissement
+            const confirmed = confirm(
+                `⚠️ ATTENTION ⚠️\n\n` +
+                `Vous avez ${decisionsCount} décision${decisionsCount > 1 ? 's' : ''} enregistrée${decisionsCount > 1 ? 's' : ''} pour cette œuvre.\n\n` +
+                `Si vous modifiez les chapitres, TOUTES les décisions seront PERDUES.\n\n` +
+                `💡 Pensez à exporter vos décisions avant de continuer.\n\n` +
+                `Voulez-vous vraiment continuer et supprimer toutes les décisions ?`
+            );
+            
+            if (!confirmed) {
+                return; // L'utilisateur a annulé
+            }
+            
+            // Supprimer toutes les décisions
+            await API.deleteAllDecisions(workId);
+        }
+        
         // Sauvegarder les modifications dans l'etat local et global
         savedExcludedChapters = JSON.parse(JSON.stringify(excludedChapters));
         appState.excludedChapters = JSON.parse(JSON.stringify(excludedChapters));
@@ -344,6 +371,9 @@ export async function saveChapterSelection() {
                 populateChapterDropdown(validChapters);
                 showStep4();
             }
+            
+            // Mettre à jour le bouton export (décisions supprimées)
+            updateExportButton();
         } else {
             alert('Erreur lors de la sauvegarde : ' + result.message);
         }
@@ -453,6 +483,63 @@ function populateChapterDropdown(validChapters) {
 function showStep4() {
     document.getElementById('chapter-selection').style.display = 'block';
     document.querySelector('#chapter-section > p.text-muted').style.display = 'none';
+    
+    // Afficher la section export en bas de page
+    const exportSection = document.getElementById('export-section');
+    if (exportSection) exportSection.style.display = 'block';
+    
+    // Mettre à jour le nom de l'œuvre pour l'export
+    const exportWorkName = document.getElementById('export-work-name');
+    if (exportWorkName) exportWorkName.textContent = appState.selectedWork || '';
+    
+    // Mettre à jour l'état du bouton export
+    updateExportButton();
+}
+
+/**
+ * Met à jour l'état du bouton export selon le nombre de décisions
+ */
+export async function updateExportButton() {
+    const btnExport = document.getElementById('btn-export');
+    const decisionsCount = document.getElementById('export-decisions-count');
+    
+    if (!btnExport || !decisionsCount) return;
+    
+    // Compter les décisions enregistrées pour tous les chapitres
+    let totalDecisions = 0;
+    const workId = appState.selectedWork;
+    const validChapters = appState.validChapters || [];
+    
+    if (workId && validChapters.length > 0) {
+        try {
+            for (const chapter of validChapters) {
+                const response = await fetch(`/api/word-decisions/${workId}/${chapter.index}`);
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        // Compter seulement les décisions "conserver"
+                        const conserved = result.decisions.filter(d => d.action === 'conserver');
+                        totalDecisions += conserved.length;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Erreur comptage décisions:', e);
+        }
+    }
+    
+    // Mettre à jour l'affichage
+    if (totalDecisions === 0) {
+        btnExport.disabled = true;
+        decisionsCount.style.display = 'block';
+        decisionsCount.textContent = '0 variantes conservées';
+        decisionsCount.className = 'text-danger small mt-1';
+    } else {
+        btnExport.disabled = false;
+        decisionsCount.style.display = 'block';
+        decisionsCount.textContent = `${totalDecisions} variante${totalDecisions > 1 ? 's' : ''} conservée${totalDecisions > 1 ? 's' : ''}`;
+        decisionsCount.className = 'text-success small mt-1';
+    }
 }
 
 /**

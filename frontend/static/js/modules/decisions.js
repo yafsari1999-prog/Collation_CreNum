@@ -868,6 +868,14 @@ export async function saveAllDecisions() {
     // Mettre à jour le snapshot sauvegardé
     collationState.savedWordDecisions = JSON.parse(JSON.stringify(decisions));
     
+    // Mettre à jour le bouton export
+    try {
+        const { updateExportButton } = await import('./chapter-validation.js');
+        await updateExportButton();
+    } catch (e) {
+        console.warn('Impossible de mettre à jour le bouton export:', e);
+    }
+    
     if (errorCount === 0) {
         alert(`${successCount} décision(s) enregistrée(s) avec succès.`);
     } else {
@@ -961,25 +969,86 @@ function createExportModal() {
 }
 
 /**
- * Prépare les données d'export (variantes conservées)
+ * Prépare les données d'export (variantes conservées) pour TOUS les chapitres validés.
+ * Utilise les numéros de chapitres artificiels (normalisés).
  */
-function getExportData() {
+async function getExportDataAllChapters() {
+    const workId = appState.selectedWork;
+    const validChapters = appState.validChapters || [];
+    // Utiliser les vrais noms des témoins depuis collationState (pas les IDs)
+    const witnessNames = collationState.results?.witnesses || 
+                         ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    
+    if (!workId || validChapters.length === 0) {
+        // Fallback: utiliser les données du chapitre courant
+        return getExportDataCurrentChapter();
+    }
+    
+    try {
+        const response = await fetch('/api/export-all-decisions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                work_id: workId,
+                valid_chapters: validChapters,
+                witness_names: witnessNames
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            const apiWitnessNames = result.witness_names || witnessNames;
+            
+            // Transformer les données de l'API en format d'export
+            return result.decisions.map(dec => {
+                const row = {
+                    'Chapitre': dec.chapitre,
+                    'Page': dec.page || '',
+                    'Vers': dec.vers
+                };
+                // Ajouter les colonnes des témoins avec leurs vrais noms
+                apiWitnessNames.forEach(name => {
+                    row[name] = dec.words?.[name] || '';
+                });
+                row['Description'] = dec.explication || '';
+                return row;
+            });
+        } else {
+            console.error('Erreur API export:', result.message);
+            return getExportDataCurrentChapter();
+        }
+    } catch (error) {
+        console.error('Erreur lors de l\'export multi-chapitres:', error);
+        return getExportDataCurrentChapter();
+    }
+}
+
+/**
+ * Prépare les données d'export pour le chapitre courant uniquement (fallback)
+ */
+function getExportDataCurrentChapter() {
     const decisions = collationState.wordDecisions || {};
     const conserved = Object.values(decisions).filter(d => d.action === 'conserver');
-    const witnessNames = collationState.results?.witnesses || ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    // Utiliser les vrais noms des témoins depuis collationState (pas les IDs)
+    const witnessNames = collationState.results?.witnesses || 
+                         ['Témoin 1', 'Témoin 2', 'Témoin 3'];
     
     conserved.sort((a, b) => {
         if (a.verse_number !== b.verse_number) return a.verse_number - b.verse_number;
         return a.position - b.position;
     });
     
+    // Utiliser le numéro de chapitre normalisé (commence à 1)
+    const currentChapterIndex = appState.selectedChapter ?? 0;
+    const normalizedChapter = currentChapterIndex + 1;
+    
     return conserved.map(dec => {
         const page = dec.pages ? Object.values(dec.pages).filter(p => p).join(', ') : '';
-        const chapterIdx = appState.selectedChapter ?? '';
         const row = {
-            Chapitre: chapterIdx,
-            Page: page || '',
-            Vers: dec.verse_number
+            'Chapitre': normalizedChapter,
+            'Page': page || '',
+            'Vers': dec.verse_number
         };
         witnessNames.forEach(name => {
             row[name] = dec.words?.[name] || '';
@@ -990,49 +1059,70 @@ function getExportData() {
 }
 
 /**
- * Exécute l'export dans le format choisi
+ * Exécute l'export dans le format choisi (tous les chapitres validés)
  */
-export function executeExport() {
+export async function executeExport() {
     const filename = document.getElementById('export-filename')?.value?.trim() || 'export';
     const format = document.getElementById('export-format')?.value || 'json';
-    const data = getExportData();
     
-    if (data.length === 0) {
-        alert('Aucune variante conservée \u00e0 exporter.');
-        return;
+    // Afficher un indicateur de chargement
+    const exportBtn = document.querySelector('#exportModal .btn-success');
+    const originalText = exportBtn?.innerHTML;
+    if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Chargement...';
     }
     
-    let blob, ext;
-    
-    if (format === 'json') {
-        const json = JSON.stringify(data, null, 2);
-        blob = new Blob([json], { type: 'application/json' });
-        ext = 'json';
-    } else if (format === 'csv') {
-        const csv = convertToCSV(data);
-        // BOM pour Excel
-        blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-        ext = 'csv';
-    } else if (format === 'excel') {
-        const csv = convertToCSV(data, '\t');
-        blob = new Blob(['\uFEFF' + csv], { type: 'application/vnd.ms-excel;charset=utf-8' });
-        ext = 'xls';
+    try {
+        // Récupérer les données de TOUS les chapitres validés
+        const data = await getExportDataAllChapters();
+        
+        if (data.length === 0) {
+            alert('Aucune variante conservée à exporter.');
+            return;
+        }
+        
+        let blob, ext;
+        
+        if (format === 'json') {
+            const json = JSON.stringify(data, null, 2);
+            blob = new Blob([json], { type: 'application/json' });
+            ext = 'json';
+        } else if (format === 'csv') {
+            const csv = convertToCSV(data);
+            // BOM pour Excel
+            blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+            ext = 'csv';
+        } else if (format === 'excel') {
+            const csv = convertToCSV(data, '\t');
+            blob = new Blob(['\uFEFF' + csv], { type: 'application/vnd.ms-excel;charset=utf-8' });
+            ext = 'xls';
+        }
+        
+        // Télécharger
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Fermer le modal
+        document.activeElement?.blur();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('exportModal'));
+        if (modal) modal.hide();
+    } catch (error) {
+        console.error('Erreur lors de l\'export:', error);
+        alert('Erreur lors de l\'export: ' + error.message);
+    } finally {
+        // Restaurer le bouton
+        if (exportBtn) {
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = originalText;
+        }
     }
-    
-    // Télécharger
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}.${ext}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    // Fermer le modal
-    document.activeElement?.blur();
-    const modal = bootstrap.Modal.getInstance(document.getElementById('exportModal'));
-    if (modal) modal.hide();
 }
 
 /**

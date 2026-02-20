@@ -520,6 +520,91 @@ def delete_word_decision(work_id, chapter_index, verse_number, position):
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route('/api/count-decisions/<work_id>', methods=['GET'])
+def count_decisions(work_id):
+    """
+    Compte le nombre total de décisions pour une œuvre.
+    """
+    try:
+        count = word_decision_manager.count_all_decisions(work_id)
+        return jsonify({"status": "success", "count": count})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/delete-all-decisions/<work_id>', methods=['DELETE'])
+def delete_all_decisions(work_id):
+    """
+    Supprime toutes les décisions pour une œuvre.
+    """
+    try:
+        deleted = word_decision_manager.delete_all_decisions(work_id)
+        return jsonify({"status": "success", "deleted": deleted})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/export-all-decisions', methods=['POST'])
+def export_all_decisions():
+    """
+    Exporte toutes les décisions 'conserver' pour tous les chapitres validés.
+    Utilise les numéros de chapitres artificiels (normalisés).
+    
+    Body JSON:
+        - work_id: ID de l'œuvre
+        - valid_chapters: Liste des chapitres validés avec leur numéro normalisé
+          [{index: 0, label: "Chapitre 1"}, ...]
+        - witness_names: Liste des noms des témoins
+    
+    Returns:
+        Liste de toutes les variantes conservées avec le numéro de chapitre normalisé
+    """
+    try:
+        data = request.json
+        work_id = data.get('work_id')
+        valid_chapters = data.get('valid_chapters', [])
+        witness_names = data.get('witness_names', ['Témoin 1', 'Témoin 2', 'Témoin 3'])
+        
+        if not work_id:
+            return jsonify({"status": "error", "message": "work_id requis"}), 400
+        
+        all_decisions = []
+        
+        for chapter in valid_chapters:
+            # Le chapitre artificiel (normalisé) commence à 1
+            normalized_chapter = chapter.get('index', 0) + 1
+            original_index = chapter.get('index', 0)
+            
+            # Charger les décisions de mots pour ce chapitre
+            decisions = word_decision_manager.load_word_decisions(work_id, original_index)
+            
+            # Filtrer les décisions "conserver"
+            conserved = [d for d in decisions if d.get('action') == 'conserver']
+            
+            for dec in conserved:
+                # Ajouter le numéro de chapitre normalisé
+                row = {
+                    'chapitre': normalized_chapter,
+                    'page': ', '.join([str(p) for p in dec.get('pages', {}).values() if p]),
+                    'vers': dec.get('verse_number', ''),
+                    'position': dec.get('position', ''),
+                    'words': dec.get('words', {}),
+                    'explication': dec.get('explication', '')
+                }
+                all_decisions.append(row)
+        
+        # Trier par chapitre, puis vers, puis position
+        all_decisions.sort(key=lambda x: (x['chapitre'], x['vers'], x['position']))
+        
+        return jsonify({
+            "status": "success", 
+            "decisions": all_decisions,
+            "witness_names": witness_names
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 if __name__ == '__main__':
     from config import FLASK_PORT
     app.run(debug=True, port=FLASK_PORT)

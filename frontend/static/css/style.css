@@ -427,7 +427,7 @@ body {
     padding: 2px 4px;
     margin: 1px;
     border-radius: 3px;
-    cursor: pointer;
+    cursor: default;
     transition: all 0.15s ease;
     position: relative;
 }
@@ -440,6 +440,7 @@ body {
 .word-token.word-variant {
     background-color: #fff3cd;
     border-bottom: 2px solid #ffc107;
+    cursor: pointer;
 }
 
 .word-token.word-variant:hover {
@@ -450,6 +451,7 @@ body {
 .word-token.word-decided {
     background-color: #d1e7dd;
     border-bottom: 2px solid #198754;
+    cursor: pointer;
 }
 
 .word-token.word-decided:hover {
@@ -461,6 +463,7 @@ body {
     background-color: #e2e3e5;
     border-bottom: 2px solid #adb5bd;
     color: #6c757d;
+    cursor: pointer;
 }
 
 .word-token.word-ignored:hover {
@@ -490,7 +493,7 @@ body {
     white-space: nowrap;
 }
 
-/* Gap (mot manquant) */
+/* Gap (mot manquant) - seulement cliquable si variante */
 .word-gap {
     display: inline-block;
     padding: 2px 6px;
@@ -499,8 +502,12 @@ body {
     color: #842029;
     border-radius: 3px;
     font-style: italic;
-    cursor: pointer;
+    cursor: default;
     font-size: 0.85em;
+}
+
+.word-gap.word-variant {
+    cursor: pointer;
 }
 
 .word-gap:hover {
