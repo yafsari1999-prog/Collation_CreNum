@@ -1211,6 +1211,7 @@ function convertToCSV(data, separator = ',') {
 function findSimilarVariantsInChapter(currentVerseNumber, currentPosIndex) {
     const results = [];
     const verses = collationState.results?.verses || [];
+    const witnessNames = getSelectedWitnessNames();
     
     // Trouver le vers actuel
     const currentVerse = verses.find(v => v.verse_number === currentVerseNumber);

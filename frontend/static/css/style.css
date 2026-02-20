@@ -241,15 +241,6 @@ body {
     min-width: 250px;
 }
 
-/* En-têtes des témoins */
-.witness-header {
-    background-color: #212529;
-    color: white;
-    padding: 12px;
-    font-weight: 600;
-    text-align: center;
-}
-
 /* Grille de collation */
 .collation-header {
     display: grid;
@@ -262,15 +253,18 @@ body {
 }
 
 .verse-number-header,
-.witness-header,
 .actions-header {
     padding: 10px;
     text-align: center;
 }
 
 .witness-header {
-    background-color: #e9ecef;
+    background-color: #495057;
+    color: white;
+    padding: 10px;
+    text-align: center;
     border-radius: 5px;
+    font-weight: 600;
 }
 
 /* Ligne de vers */
