@@ -1220,13 +1220,12 @@ function findSimilarVariantsInChapter(currentVerseNumber, currentPosIndex) {
     const currentPosition = currentVerse.word_alignment[currentPosIndex];
     if (!currentPosition) return results;
     
-    // Extraire les mots du témoin actuel (normalisés)
-    const currentWords = [];
-    
+    // Extraire les mots UNIQUES de la variante actuelle (normalisés en minuscules)
+    const uniqueWordsSet = new Set();
     for (let i = 0; i < 3; i++) {
         const wordData = currentPosition.words.find(w => w.witness_index === i);
         const text = wordData?.missing ? '∅' : (wordData?.text || '').toLowerCase().trim();
-        currentWords.push(text);
+        if (text) uniqueWordsSet.add(text);
     }
     
     // Parcourir tous les vers du chapitre
@@ -1235,7 +1234,7 @@ function findSimilarVariantsInChapter(currentVerseNumber, currentPosIndex) {
         
         // Parcourir toutes les positions dans ce vers
         verse.word_alignment.forEach((position, posIndex) => {
-            // Extraire les mots de cette position
+            // Extraire les mots de cette position (normalisés)
             const posWords = [];
             for (let i = 0; i < 3; i++) {
                 const wordData = position.words.find(w => w.witness_index === i);
@@ -1243,10 +1242,13 @@ function findSimilarVariantsInChapter(currentVerseNumber, currentPosIndex) {
                 posWords.push(text);
             }
             
-            // Compter combien de mots sont en commun (minimum 2 sur 3)
-            const commonWords = currentWords.filter(word => posWords.includes(word));
+            // Vérifier que TOUS les 3 témoins ont un mot dans l'ensemble de mots uniques
+            const allInSet = posWords.every(word => uniqueWordsSet.has(word));
             
-            if (commonWords.length >= 2) {
+            // Vérifier qu'il y a au moins une différence (pas tous identiques)
+            const allIdentical = posWords[0] === posWords[1] && posWords[1] === posWords[2];
+            
+            if (allInSet && !allIdentical) {
                 // Vérifier si déjà une décision "ignorer"
                 const key = `${verse.verse_number}-${posIndex}`;
                 const existingDecision = collationState.wordDecisions?.[key];
@@ -1403,13 +1405,16 @@ function openIgnoreEverywhereModal() {
                 return `<td style="font-size: 0.9em;">${displayText}</td>`;
             }).join('');
             
+            // Coché par défaut sauf si déjà ignoré
+            const shouldBeChecked = !variant.alreadyIgnored;
+            
             return `
                 <tr${isCurrent} data-verse="${variant.verseNumber}" data-position="${variant.position}">
                     <td>
                         <input type="checkbox" class="ignore-everywhere-checkbox" 
                                data-verse="${variant.verseNumber}" 
                                data-position="${variant.position}" 
-                               ${variant.alreadyIgnored ? '' : 'checked'}>
+                               ${shouldBeChecked ? 'checked' : ''}>
                     </td>
                     <td><strong>${variant.verseNumber}</strong></td>
                     ${witnessCells}
