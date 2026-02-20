@@ -12,6 +12,11 @@ import {
 import { onChapterSelected } from './chapters.js';
 import { launchCollation, previousPage, nextPage } from './collation.js';
 import { openQualifyModal, saveDecision, clearDecision, saveAllDecisions } from './decisions.js';
+import { 
+    toggleChapterEditor, excludeChapter,
+    saveChapterSelection, cancelChapterEdit, validateAndProceed,
+    resetAllChapters
+} from './chapter-validation.js';
 
 /**
  * Configure tous les event listeners de l'application
@@ -54,4 +59,12 @@ export function exposeGlobalFunctions() {
     window.saveDecision = saveDecision;
     window.clearDecision = clearDecision;
     window.saveAllDecisions = saveAllDecisions;
+    
+    // Fonctions validation chapitres
+    window.toggleChapterEditor = toggleChapterEditor;
+    window.excludeChapter = excludeChapter;
+    window.saveChapterSelection = saveChapterSelection;
+    window.cancelChapterEdit = cancelChapterEdit;
+    window.resetAllChapters = resetAllChapters;
+    window.validateAndProceed = validateAndProceed;
 }

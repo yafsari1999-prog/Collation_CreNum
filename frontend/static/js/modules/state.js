@@ -8,7 +8,9 @@ export const appState = {
     selectedWitnesses: [null, null, null],
     selectedChapter: null,
     works: [],
-    witnesses: []
+    witnesses: [],
+    excludedChapters: {}, // Chapitres exclus par témoin: {witness_id: [chapter_indices]}
+    validChapters: [] // Chapitres valides avec mapping: [{index, label, mapping: {witness_id: original_index}}]
 };
 
 // État de la collation

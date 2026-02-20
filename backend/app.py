@@ -201,19 +201,142 @@ def get_chapters(work_id):
     return jsonify({"status": "success", "chapters": chapters})
 
 
+@app.route('/api/validate-chapters', methods=['POST'])
+def validate_chapters():
+    """
+    Valide la compatibilité des chapitres entre témoins.
+    Analyse tous les chapitres et compte les vers MainZone uniquement.
+    """
+    data = request.json
+    work_id = data.get('work_id')
+    witness_ids = data.get('witness_ids')
+    
+    if not all([work_id, witness_ids]):
+        return jsonify({"status": "error", "message": "Paramètres manquants"}), 400
+    
+    if len(witness_ids) != 3:
+        return jsonify({"status": "error", "message": "3 témoins requis"}), 400
+    
+    try:
+        # Récupérer les informations des témoins
+        witnesses = work_manager.list_witnesses(work_id)
+        witness_files = {}
+        witness_names = {}
+        
+        for wit_id in witness_ids:
+            witness = next((w for w in witnesses if w['id'] == wit_id), None)
+            if not witness:
+                return jsonify({"status": "error", "message": f"Témoin {wit_id} introuvable"}), 404
+            witness_files[wit_id] = witness['file']
+            witness_names[wit_id] = witness['name']
+        
+        # Analyser chaque témoin
+        analysis = {}
+        max_chapters = 0
+        
+        for wit_id, file_path in witness_files.items():
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data_array = json.load(f)
+                num_chapters = len(data_array)
+                max_chapters = max(max_chapters, num_chapters)
+                
+                chapters_info = []
+                for chapter_index, chapter_data in enumerate(data_array):
+                    # Compter uniquement les vers MainZone
+                    mainzone_count = sum(1 for verse in chapter_data if verse.get('region') == 'MainZone')
+                    chapters_info.append({
+                        "chapter_number": chapter_index + 1,
+                        "mainzone_verses": mainzone_count,
+                        "total_verses": len(chapter_data)
+                    })
+                
+                analysis[wit_id] = {
+                    "name": witness_names[wit_id],
+                    "total_chapters": num_chapters,
+                    "chapters": chapters_info
+                }
+        
+        # Déterminer si warning nécessaire
+        chapter_counts = [analysis[wit_id]["total_chapters"] for wit_id in witness_ids]
+        has_mismatch = len(set(chapter_counts)) > 1
+        
+        return jsonify({
+            "status": "success",
+            "analysis": analysis,
+            "witness_order": witness_ids,
+            "max_chapters": max_chapters,
+            "has_mismatch": has_mismatch
+        })
+        
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/chapter-exclusions/<work_id>', methods=['GET'])
+def get_chapter_exclusions(work_id):
+    """
+    Recupere les exclusions de chapitres sauvegardees pour une oeuvre.
+    """
+    try:
+        exclusions_file = f'../data/decisions/{work_id}_chapter_exclusions.json'
+        
+        if os.path.exists(exclusions_file):
+            with open(exclusions_file, 'r', encoding='utf-8') as f:
+                exclusions_data = json.load(f)
+            return jsonify({"status": "success", "excluded_chapters": exclusions_data.get('excluded_chapters', {})})
+        else:
+            return jsonify({"status": "success", "excluded_chapters": {}})
+    
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/chapter-exclusions', methods=['POST'])
+def save_chapter_exclusions():
+    """
+    Sauvegarde les exclusions de chapitres pour une oeuvre.
+    Format: {work_id: "...", excluded_chapters: {witness_id: [chapter_nums...]}}
+    """
+    data = request.json
+    work_id = data.get('work_id')
+    excluded_chapters = data.get('excluded_chapters', {})
+    
+    if not work_id:
+        return jsonify({"status": "error", "message": "work_id manquant"}), 400
+    
+    try:
+        # Creer le repertoire si necessaire
+        os.makedirs('../data/decisions', exist_ok=True)
+        
+        # Sauvegarder dans un fichier JSON
+        exclusions_file = f'../data/decisions/{work_id}_chapter_exclusions.json'
+        with open(exclusions_file, 'w', encoding='utf-8') as f:
+            json.dump({
+                "work_id": work_id,
+                "excluded_chapters": excluded_chapters
+            }, f, indent=2, ensure_ascii=False)
+        
+        return jsonify({"status": "success", "message": "Exclusions sauvegardees"})
+    
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 # ============ Routes pour la collation ============
 
 @app.route('/api/collate', methods=['POST'])
 def collate_texts():
     """
     API endpoint pour lancer une collation.
-    Attend un JSON avec work_id, witness_ids (liste de 3), et chapter_index.
+    Attend un JSON avec work_id, witness_ids (liste de 3), chapter_index, et optionnel chapter_mapping.
+    chapter_mapping: {witness_id: original_chapter_index} pour utiliser des chapitres différents par témoin.
     """
     data = request.json
     
     work_id = data.get('work_id')
     witness_ids = data.get('witness_ids')
     chapter_index = data.get('chapter_index')
+    chapter_mapping = data.get('chapter_mapping')  # Optionnel: {witness_id: original_chapter_index}
     
     if not all([work_id, witness_ids, chapter_index is not None]):
         return jsonify({"status": "error", "message": "Paramètres manquants"}), 400
@@ -226,6 +349,7 @@ def collate_texts():
     
     witness_files = []
     witness_names = []
+    chapter_indices = []  # Index original pour chaque témoin
     
     for wit_id in witness_ids:
         wit = next((w for w in witnesses if w['id'] == wit_id), None)
@@ -233,10 +357,16 @@ def collate_texts():
             return jsonify({"status": "error", "message": f"Témoin {wit_id} non trouvé"}), 404
         witness_files.append(wit['file'])
         witness_names.append(wit['name'])
+        
+        # Utiliser le mapping si fourni, sinon utiliser chapter_index pour tous
+        if chapter_mapping and wit_id in chapter_mapping:
+            chapter_indices.append(chapter_mapping[wit_id])
+        else:
+            chapter_indices.append(chapter_index)
     
     try:
-        # Effectuer la collation
-        results = perform_collation(witness_files, witness_names, chapter_index)
+        # Effectuer la collation avec chapters spécifiques par témoin
+        results = perform_collation(witness_files, witness_names, chapter_indices)
         
         if 'error' in results:
             return jsonify({"status": "error", "message": results['error']}), 500

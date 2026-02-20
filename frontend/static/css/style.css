@@ -326,6 +326,21 @@ body {
     justify-content: center;
 }
 
+.witness-cell.filtered-witness {
+    background-color: #f8f9fa;
+    opacity: 0.6;
+    border-style: dashed;
+    border-color: #ced4da;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.witness-cell.filtered-witness em {
+    font-size: 0.85rem;
+    color: #999;
+}
+
 .witness-cell .metadata {
     font-size: 0.75rem;
     color: #6c757d;
@@ -511,6 +526,73 @@ body {
 .word-token.word-classified-equivalent {
     background-color: #d1e7dd;
     border-bottom: 2px solid #198754;
+}
+/* ===== Tableau de validation des chapitres ===== */
+#chapters-table {
+    font-size: 0.95rem;
+}
+
+#chapters-table thead th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    text-align: center;
+    vertical-align: middle;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#chapters-table tbody td {
+    vertical-align: middle;
+    padding: 0.75rem;
+}
+
+#chapters-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+#chapters-table .table-secondary {
+    background-color: #e9ecef;
+    opacity: 0.5;
+}
+
+#chapters-table .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.825rem;
+}
+
+#chapter-editor {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== Chapter Editor Box ===== */
+.chapter-editor-box {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    border: 2px solid #0d6efd;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#btn-validate-chapters {
+    transition: all 0.3s ease;
+}
+
+#btn-validate-chapters:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Responsive */

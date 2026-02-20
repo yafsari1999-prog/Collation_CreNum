@@ -52,6 +52,47 @@ export async function fetchWorkChapters(workId) {
     }
 }
 
+export async function validateChapters(workId, witnessIds) {
+    try {
+        const response = await fetch('/api/validate-chapters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                work_id: workId,
+                witness_ids: witnessIds
+            })
+        });
+        return await handleResponse(response);
+    } catch (error) {
+        handleFetchError(error);
+    }
+}
+
+export async function fetchChapterExclusions(workId) {
+    try {
+        const response = await fetch(`/api/chapter-exclusions/${workId}`);
+        return await handleResponse(response);
+    } catch (error) {
+        handleFetchError(error);
+    }
+}
+
+export async function saveChapterExclusions(workId, excludedChapters) {
+    try {
+        const response = await fetch('/api/chapter-exclusions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                work_id: workId,
+                excluded_chapters: excludedChapters
+            })
+        });
+        return await handleResponse(response);
+    } catch (error) {
+        handleFetchError(error);
+    }
+}
+
 export async function createWork(workData) {
     try {
         const response = await fetch('/api/works', {
@@ -138,7 +179,7 @@ export async function deleteWitness(workId, witnessId) {
 
 // === API COLLATION ===
 
-export async function performCollation(workId, witnessIds, chapterIndex) {
+export async function performCollation(workId, witnessIds, chapterIndex, chapterMapping = null) {
     try {
         const response = await fetch('/api/collate', {
             method: 'POST',
@@ -146,7 +187,8 @@ export async function performCollation(workId, witnessIds, chapterIndex) {
             body: JSON.stringify({
                 work_id: workId,
                 witness_ids: witnessIds,
-                chapter_index: parseInt(chapterIndex)
+                chapter_index: parseInt(chapterIndex),
+                chapter_mapping: chapterMapping // {witness_id: original_chapter_index}
             })
         });
         return await handleResponse(response);

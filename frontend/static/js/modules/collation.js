@@ -34,10 +34,16 @@ export async function launchCollation() {
     collationFooter.style.display = 'none';
     
     try {
+        // Récupérer le mapping du chapitre sélectionné vers les chapitres originaux
+        const selectedChapterIdx = parseInt(appState.selectedChapter);
+        const chapterInfo = appState.validChapters.find(ch => ch.index === selectedChapterIdx);
+        const chapterMapping = chapterInfo ? chapterInfo.mapping : null;
+        
         const data = await API.performCollation(
             appState.selectedWork,
             appState.selectedWitnesses,
-            appState.selectedChapter
+            appState.selectedChapter,
+            chapterMapping
         );
         
         if (data.status === 'success') {
@@ -156,6 +162,10 @@ export function displayCollationResults() {
     // Afficher les vers de la page courante
     for (let i = startIdx; i < endIdx; i++) {
         const verse = collationState.results.verses[i];
+        // Ne PAS afficher les vers entièrement filtrés (toutes les régions filtrées)
+        if (verse.is_filtered) {
+            continue;
+        }
         versesContainer.appendChild(createVerseRow(verse));
     }
 }
@@ -205,7 +215,14 @@ export function createVerseRow(verse) {
         witnessDiv.className = 'witness-cell';
         witnessDiv.dataset.witnessIndex = witIndex;
         
-        if (witness.missing) {
+        // Vérifier si ce témoin est filtré (région non désirée)
+        const isFiltered = witness.metadata?.is_filtered || false;
+        
+        if (isFiltered) {
+            // Afficher en grisé avec indication
+            witnessDiv.classList.add('filtered-witness');
+            witnessDiv.innerHTML = `<em class="text-muted small" title="Région: ${witness.metadata?.region || 'N/A'}">— ${witness.metadata?.region || 'filtré'} —</em>`;
+        } else if (witness.missing) {
             witnessDiv.innerHTML = '<em class="text-muted">— manquant —</em>';
         } else if (verse.word_alignment && verse.word_alignment.length > 0) {
             // Afficher mot par mot avec spans cliquables

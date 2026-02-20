@@ -7,6 +7,7 @@ import json
 import unicodedata
 from collatex import Collation, collate
 import re
+from data_import import filter_regions
 
 
 def normalize_text(text):
@@ -175,6 +176,15 @@ def collate_verse_words(texts, witness_names):
     Returns:
         Liste de positions avec les mots alignés
     """
+    # Vérifier si tous les textes sont vides (filtrés ou manquants)
+    if not any(texts):
+        return []
+    
+    # Si un ou plusieurs témoins ont un texte vide, utiliser le fallback
+    # pour éviter les erreurs CollateX avec des singletons
+    if any(not text for text in texts):
+        return fallback_word_alignment(texts, witness_names)
+    
     # Construire l'input pré-tokenisé pour CollateX
     witnesses_input = {"witnesses": []}
     
@@ -307,14 +317,15 @@ def fallback_word_alignment(texts, witness_names):
     return aligned_words
 
 
-def perform_collation(witness_files, witness_names, chapter_index):
+def perform_collation(witness_files, witness_names, chapter_indices):
     """
     Effectue la collation de 3 témoins pour un chapitre donné.
+    Ne compare que les vers de type MainZone.
     
     Args:
         witness_files: Liste de 3 chemins vers les fichiers JSON
         witness_names: Liste de 3 noms de témoins
-        chapter_index: Index du chapitre (0-based)
+        chapter_indices: Liste de 3 index de chapitre (0-based), un par témoin
     
     Returns:
         Dict avec les résultats de collation structurés par vers
@@ -322,35 +333,46 @@ def perform_collation(witness_files, witness_names, chapter_index):
     if len(witness_files) != 3 or len(witness_names) != 3:
         raise ValueError("Il faut exactement 3 témoins")
     
-    # Charger les données des 3 témoins
+    # Convertir chapter_indices en liste si c'est un scalaire
+    if not isinstance(chapter_indices, list):
+        chapter_indices = [chapter_indices, chapter_indices, chapter_indices]
+    
+    # Charger les données des 3 témoins - UNIQUEMENT les MainZone
     witnesses_data = []
-    for file in witness_files:
-        verses = load_witness_data(file, chapter_index)
-        witnesses_data.append(verses)
+    for i, file in enumerate(witness_files):
+        chapter_idx = chapter_indices[i]
+        all_verses = load_witness_data(file, chapter_idx)
+        
+        # Filtrer pour ne garder que les MainZone
+        mainzone_verses = [v for v in all_verses if v.get('region', '') == 'MainZone']
+        witnesses_data.append(mainzone_verses)
     
     # Vérifier que tous les témoins ont des données
     if not all(witnesses_data):
         return {
             'error': 'Impossible de charger les données de tous les témoins',
             'witnesses': witness_names,
-            'chapter': chapter_index
+            'chapter': chapter_indices
         }
     
-    # Préparer les résultats
+    # Préparer les résultats - basé sur le nombre maximum de vers MainZone
     max_verses = max(len(w) for w in witnesses_data)
     results = []
     
     for verse_idx in range(max_verses):
         verse_data = {
             'verse_number': verse_idx + 1,
-            'witnesses': []
+            'witnesses': [],
+            'is_filtered': False
         }
         
         # Collecter les textes pour ce vers depuis les 3 témoins
         texts_for_collation = []
+        
         for wit_idx in range(3):
             if verse_idx < len(witnesses_data[wit_idx]):
                 verse = witnesses_data[wit_idx][verse_idx]
+                
                 verse_data['witnesses'].append({
                     'name': witness_names[wit_idx],
                     'text': verse['text'],
@@ -359,7 +381,8 @@ def perform_collation(witness_files, witness_names, chapter_index):
                         'region': verse['region'],
                         'alto_id': verse['alto_id'],
                         'type': verse['type'],
-                        'page': verse['page']
+                        'page': verse['page'],
+                        'is_filtered': False
                     }
                 })
                 texts_for_collation.append(verse['text_normalized'])
@@ -373,6 +396,9 @@ def perform_collation(witness_files, witness_names, chapter_index):
                     'missing': True
                 })
                 texts_for_collation.append('')
+        
+        # Comme on ne garde que les MainZone, les vers ne sont jamais filtrés
+        verse_data['is_filtered'] = False
         
         # Analyser les variantes
         verse_data['has_variants'] = len(set(texts_for_collation)) > 1
@@ -393,8 +419,13 @@ def perform_collation(witness_files, witness_names, chapter_index):
         verse_data['similarities'] = similarities
         
         # Alignement mot par mot avec CollateX
-        original_texts = [w['text'] for w in verse_data['witnesses']]
-        verse_data['word_alignment'] = collate_verse_words(original_texts, witness_names)
+        # Utiliser texts_for_collation (qui a des chaînes vides pour les filtrés)
+        # au lieu de original_texts pour éviter l'erreur CollateX
+        # Si tous les textes sont vides (filtrés), word_alignment sera vide
+        if any(texts_for_collation):
+            verse_data['word_alignment'] = collate_verse_words(texts_for_collation, witness_names)
+        else:
+            verse_data['word_alignment'] = []
         
         # Compter les variantes par mot
         verse_data['variant_word_count'] = sum(
@@ -406,7 +437,7 @@ def perform_collation(witness_files, witness_names, chapter_index):
     return {
         'success': True,
         'witnesses': witness_names,
-        'chapter': chapter_index,
+        'chapter': chapter_indices,
         'total_verses': len(results),
         'verses': results
     }

@@ -4,6 +4,7 @@
 
 import { appState } from './state.js';
 import { loadChapters, enableChapterSection, disableChapterSection } from './chapters.js';
+import { validateChapters, resetValidation } from './chapter-validation.js';
 import * as API from './api.js';
 
 /**
@@ -121,9 +122,9 @@ export async function updateWitnessesList() {
     const finalSelectedCount = appState.selectedWitnesses.filter(w => w !== null).length;
     
     if (finalSelectedCount === 3) {
-        await loadChapters();
-        enableChapterSection();
+        await validateChapters();
     } else {
+        resetValidation();
         disableChapterSection();
     }
 }
@@ -164,10 +165,10 @@ export function onWitnessCheckboxChanged(event, witnessId) {
     const allSelected = appState.selectedWitnesses.filter(w => w !== null).length === 3;
     
     if (allSelected) {
-        // Charger les chapitres
-        loadChapters();
-        enableChapterSection();
+        // Valider les chapitres
+        validateChapters();
     } else {
+        resetValidation();
         disableChapterSection();
     }
 }
@@ -412,4 +413,14 @@ export function resetWitnessesUI() {
     appState.selectedWitnesses = [null, null, null];
     document.getElementById('witnesses-list').innerHTML = '';
     disableWitnessesSection();
+}
+
+/**
+ * Retourne les objets témoins sélectionnés (3 maximum)
+ */
+export function getSelectedWitnesses() {
+    return appState.selectedWitnesses
+        .filter(id => id !== null)
+        .map(id => appState.witnesses.find(w => w.id === id))
+        .filter(w => w !== undefined);
 }

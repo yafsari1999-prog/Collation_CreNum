@@ -1,0 +1,10 @@
+{
+  "work_id": "test",
+  "excluded_chapters": {
+    "chantilly_l4_by_chap": [
+      1,
+      28,
+      13
+    ]
+  }
+}

@@ -63,15 +63,78 @@
             </div>
         </div>
 
-        <!-- Étape 3: Sélection du chapitre -->
+        <!-- Étape 3: Validation des chapitres -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Étape 3 : Validation des chapitres</h5>
+                    </div>
+                    <div class="card-body" id="validation-section">
+                        <p class="text-muted">Veuillez d'abord sélectionner 3 témoins</p>
+                        
+                        <div id="validation-content" style="display: none;">
+                            <!-- Résumé et warning -->
+                            <div id="chapters-summary" class="mb-3">
+                                <!-- Sera rempli dynamiquement -->
+                            </div>
+                            
+                            <!-- Bouton pour ouvrir l'éditeur -->
+                            <button type="button" class="btn btn-warning" id="btn-edit-chapters" onclick="toggleChapterEditor()">
+                                <i class="bi bi-pencil"></i> Modifier les chapitres
+                            </button>
+                            
+                            <!-- Box d'édition (caché par défaut) -->
+                            <div id="chapter-editor" class="chapter-editor-box" style="display: none;">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover" id="chapters-table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 80px;">N°</th>
+                                                <!-- Colonnes témoins ajoutées dynamiquement -->
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Lignes ajoutées dynamiquement -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <!-- Boutons d'action -->
+                                <div class="d-flex gap-2 mt-3">
+                                    <button type="button" class="btn btn-success" id="btn-save-chapters" onclick="saveChapterSelection()">
+                                        <i class="bi bi-floppy"></i> Enregistrer
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" id="btn-cancel-chapters" onclick="cancelChapterEdit()">
+                                        <i class="bi bi-x-circle"></i> Annuler
+                                    </button>
+                                    <button type="button" class="btn btn-danger" id="btn-reset-chapters" onclick="resetAllChapters()">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Réinitialiser
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Bouton Valider (visible seulement si chapitres incompatibles) -->
+                            <div class="mt-3 text-center">
+                                <button type="button" class="btn btn-primary btn-lg" id="btn-validate-chapters" onclick="validateAndProceed()">
+                                    <i class="bi bi-check-circle"></i> Valider
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Étape 4: Sélection du chapitre -->
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header bg-secondary text-white">
-                        <h5 class="mb-0">Étape 3 : Sélection du chapitre</h5>
+                        <h5 class="mb-0">Étape 4 : Sélection du chapitre</h5>
                     </div>
                     <div class="card-body" id="chapter-section">
-                        <p class="text-muted">Veuillez d'abord sélectionner 3 témoins</p>
+                        <p class="text-muted">Veuillez d'abord valider les chapitres</p>
                         
                         <div id="chapter-selection" style="display: none;">
                             <div class="row">
