@@ -383,9 +383,16 @@ function createWordClassifyModal() {
                         <textarea class="form-control" id="word-explication" rows="3" placeholder="Décrire la variante..."></textarea>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="button" class="btn btn-primary" onclick="saveWordDecision()">Enregistrer</button>
+                <div class="modal-footer flex-column p-2 gap-2">
+                    <!-- Bouton Ignorer partout (pleine largeur) -->
+                    <button type="button" id="ignore-everywhere-btn" class="btn btn-danger w-100 py-2" onclick="openIgnoreEverywhereModal()" style="display: none;">
+                        <i class="bi bi-lightning-fill"></i> Ignorer partout
+                    </button>
+                    <!-- Boutons Annuler et Enregistrer (50/50) -->
+                    <div class="d-flex w-100 gap-2">
+                        <button type="button" class="btn btn-secondary w-50 py-2" data-bs-dismiss="modal">Annuler</button>
+                        <button type="button" class="btn btn-primary w-50 py-2" onclick="saveWordDecision()">Enregistrer</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -776,6 +783,7 @@ function setWordActionSwitch(action) {
     const slider = document.getElementById('word-action-slider');
     const ignorerLabel = document.getElementById('word-action-ignorer-label');
     const conserverLabel = document.getElementById('word-action-conserver-label');
+    const ignoreEverywhereBtn = document.getElementById('ignore-everywhere-btn');
     
     if (!hiddenInput || !slider) return;
     
@@ -786,11 +794,15 @@ function setWordActionSwitch(action) {
         slider.classList.remove('right');
         conserverLabel.classList.add('active');
         ignorerLabel.classList.remove('active');
+        // Cacher le bouton "Ignorer partout"
+        if (ignoreEverywhereBtn) ignoreEverywhereBtn.style.display = 'none';
     } else {
         slider.classList.remove('left');
         slider.classList.add('right');
         ignorerLabel.classList.add('active');
         conserverLabel.classList.remove('active');
+        // Afficher le bouton "Ignorer partout"
+        if (ignoreEverywhereBtn) ignoreEverywhereBtn.style.display = 'inline-block';
     }
 }
 
@@ -1138,9 +1150,308 @@ function convertToCSV(data, separator = ',') {
         }
         return str;
     };
-    const lines = [
-        headers.map(escape).join(separator),
-        ...data.map(row => headers.map(h => escape(row[h])).join(separator))
-    ];
-    return lines.join('\n');
+    const headerRow = headers.map(escape).join(separator);
+    const rows = data.map(row => headers.map(h => escape(row[h])).join(separator));
+    return [headerRow, ...rows].join('\n');
 }
+
+/**
+ * Trouve toutes les positions dans le chapitre où au moins 2 témoins partagent les mêmes variantes
+ * @param {number} currentVerseNumber - Numéro du vers actuel
+ * @param {number} currentPosIndex - Position actuelle
+ * @returns {Array} - Liste des positions similaires avec {verseNumber, position, words, alreadyIgnored}
+ */
+function findSimilarVariantsInChapter(currentVerseNumber, currentPosIndex) {
+    const results = [];
+    const verses = collationState.results?.verses || [];
+    
+    // Trouver le vers actuel
+    const currentVerse = verses.find(v => v.verse_number === currentVerseNumber);
+    if (!currentVerse || !currentVerse.word_alignment) return results;
+    
+    const currentPosition = currentVerse.word_alignment[currentPosIndex];
+    if (!currentPosition) return results;
+    
+    // Extraire les mots du témoin actuel (normalisés)
+    const witnessNames = collationState.results?.witnesses || [];
+    const currentWords = [];
+    
+    for (let i = 0; i < 3; i++) {
+        const wordData = currentPosition.words.find(w => w.witness_index === i);
+        const text = wordData?.missing ? '∅' : (wordData?.text || '').toLowerCase().trim();
+        currentWords.push(text);
+    }
+    
+    // Parcourir tous les vers du chapitre
+    for (const verse of verses) {
+        if (!verse.word_alignment) continue;
+        
+        // Parcourir toutes les positions dans ce vers
+        verse.word_alignment.forEach((position, posIndex) => {
+            // Extraire les mots de cette position
+            const posWords = [];
+            for (let i = 0; i < 3; i++) {
+                const wordData = position.words.find(w => w.witness_index === i);
+                const text = wordData?.missing ? '∅' : (wordData?.text || '').toLowerCase().trim();
+                posWords.push(text);
+            }
+            
+            // Compter combien de mots sont en commun (minimum 2 sur 3)
+            const commonWords = currentWords.filter(word => posWords.includes(word));
+            
+            if (commonWords.length >= 2) {
+                // Vérifier si déjà une décision "ignorer"
+                const key = `${verse.verse_number}-${posIndex}`;
+                const existingDecision = collationState.wordDecisions?.[key];
+                const alreadyIgnored = existingDecision?.action === 'ignorer';
+                
+                // Construire l'objet words avec les noms de témoins
+                const words = {};
+                for (let i = 0; i < 3; i++) {
+                    const wordData = position.words.find(w => w.witness_index === i);
+                    words[witnessNames[i] || `Témoin ${i+1}`] = wordData?.missing ? '∅' : (wordData?.text || '');
+                }
+                
+                results.push({
+                    verseNumber: verse.verse_number,
+                    position: posIndex,
+                    words: words,
+                    alreadyIgnored: alreadyIgnored,
+                    isCurrent: verse.verse_number === currentVerseNumber && posIndex === currentPosIndex
+                });
+            }
+        });
+    }
+    
+    return results;
+}
+
+/**
+ * Crée dynamiquement le modal "Ignorer partout"
+ */
+function createIgnoreEverywhereModal() {
+    const modalHTML = `
+    <div class="modal fade" id="ignoreEverywhereModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-warning bg-opacity-25">
+                    <h5 class="modal-title">
+                        <i class="bi bi-lightning-fill"></i> Ignorer toujours ce variant dans le chapitre <span id="ignore-everywhere-chapter"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">
+                        <strong><span id="ignore-everywhere-count">0</span> occurrence(s)</strong> de ce variant ont été trouvées dans le chapitre.
+                        Sélectionnez les vers pour lesquels vous souhaitez appliquer la décision "Ignorer".
+                    </p>
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
+                            <thead class="sticky-top bg-white">
+                                <tr>
+                                    <th style="width: 50px;">
+                                        <input type="checkbox" id="ignore-everywhere-select-all" onclick="toggleAllIgnoreEverywhere()" checked>
+                                    </th>
+                                    <th style="width: 80px;">Vers</th>
+                                    <th id="ignore-everywhere-th-witness-0"></th>
+                                    <th id="ignore-everywhere-th-witness-1"></th>
+                                    <th id="ignore-everywhere-th-witness-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="ignore-everywhere-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="applyIgnoreEverywhere()">
+                        <i class="bi bi-check-lg"></i> Valider
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+/**
+ * Ouvre le modal "Ignorer partout"
+ */
+function openIgnoreEverywhereModal() {
+    const verseNumber = parseInt(document.getElementById('word-verse-input').value);
+    const posIndex = parseInt(document.getElementById('word-position-input').value);
+    
+    // Trouver les variantes similaires
+    const similarVariants = findSimilarVariantsInChapter(verseNumber, posIndex);
+    
+    if (similarVariants.length === 0) {
+        alert('Aucune autre occurrence de ce variant trouvée dans le chapitre.');
+        return;
+    }
+    
+    // Fermer le modal de classification
+    const wordClassifyModal = bootstrap.Modal.getInstance(document.getElementById('wordClassifyModal'));
+    if (wordClassifyModal) {
+        wordClassifyModal.hide();
+    }
+    
+    // Créer le modal s'il n'existe pas
+    let modal = document.getElementById('ignoreEverywhereModal');
+    if (!modal) {
+        createIgnoreEverywhereModal();
+        modal = document.getElementById('ignoreEverywhereModal');
+    }
+    
+    // Remplir les informations
+    const chapterEl = document.getElementById('ignore-everywhere-chapter');
+    const countEl = document.getElementById('ignore-everywhere-count');
+    const tbody = document.getElementById('ignore-everywhere-tbody');
+    const witnessNames = collationState.results?.witnesses || ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    
+    if (chapterEl) chapterEl.textContent = appState.selectedChapter ?? '';
+    if (countEl) countEl.textContent = similarVariants.length;
+    
+    // Mettre à jour les en-têtes avec les noms de témoins
+    for (let i = 0; i < 3; i++) {
+        const th = document.getElementById(`ignore-everywhere-th-witness-${i}`);
+        if (th) th.textContent = witnessNames[i];
+    }
+    
+    // Remplir le tableau
+    if (tbody) {
+        tbody.innerHTML = similarVariants.map((variant, idx) => {
+            const isCurrent = variant.isCurrent ? ' class="table-primary"' : '';
+            const alreadyIgnoredBadge = variant.alreadyIgnored 
+                ? '<span class="badge bg-secondary">Déjà ignoré</span>'
+                : '<span class="badge bg-light text-dark">Nouveau</span>';
+            const currentBadge = variant.isCurrent 
+                ? ' <span class="badge bg-info">Actuel</span>'
+                : '';
+            
+            // Trouver le vers complet
+            const verse = collationState.results.verses.find(v => v.verse_number === variant.verseNumber);
+            
+            // Construire les cellules de témoins avec le vers complet et le mot souligné
+            const witnessCells = witnessNames.map((name, witIndex) => {
+                const word = variant.words[name] || '—';
+                const witnessData = verse?.witnesses?.[witIndex];
+                let displayText = '—';
+                
+                if (witnessData && !witnessData.missing && witnessData.text) {
+                    const fullText = witnessData.text;
+                    // Chercher le mot dans le texte et le souligner
+                    if (word !== '∅' && word !== '—') {
+                        // Échapper les caractères spéciaux pour regex
+                        const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(`\\b(${escapedWord})\\b`, 'gi');
+                        displayText = fullText.replace(regex, '<u><strong>$1</strong></u>');
+                    } else {
+                        displayText = fullText;
+                    }
+                } else if (word === '∅') {
+                    displayText = '<em class="text-muted">∅ (absent)</em>';
+                }
+                
+                return `<td style="font-size: 0.9em;">${displayText}</td>`;
+            }).join('');
+            
+            return `
+                <tr${isCurrent} data-verse="${variant.verseNumber}" data-position="${variant.position}">
+                    <td>
+                        <input type="checkbox" class="ignore-everywhere-checkbox" 
+                               data-verse="${variant.verseNumber}" 
+                               data-position="${variant.position}" 
+                               ${variant.alreadyIgnored ? '' : 'checked'}>
+                    </td>
+                    <td><strong>${variant.verseNumber}</strong></td>
+                    ${witnessCells}
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    // Ouvrir le modal
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+    bsModal.show();
+}
+
+/**
+ * Bascule toutes les checkboxes dans le modal "Ignorer partout"
+ */
+function toggleAllIgnoreEverywhere() {
+    const selectAll = document.getElementById('ignore-everywhere-select-all');
+    const checkboxes = document.querySelectorAll('.ignore-everywhere-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
+
+/**
+ * Applique la décision "ignorer" à tous les vers sélectionnés
+ */
+function applyIgnoreEverywhere() {
+    const checkboxes = document.querySelectorAll('.ignore-everywhere-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        alert('Aucun vers sélectionné.');
+        return;
+    }
+    
+    const explication = document.getElementById('word-explication').value;
+    const witnessNames = collationState.results?.witnesses || [];
+    
+    // Initialiser wordDecisions si nécessaire
+    if (!collationState.wordDecisions) {
+        collationState.wordDecisions = {};
+    }
+    
+    // Parcourir chaque checkbox sélectionnée
+    checkboxes.forEach(cb => {
+        const verseNum = parseInt(cb.dataset.verse);
+        const posIdx = parseInt(cb.dataset.position);
+        const key = `${verseNum}-${posIdx}`;
+        
+        // Trouver le vers et la position
+        const verse = collationState.results.verses.find(v => v.verse_number === verseNum);
+        if (!verse || !verse.word_alignment) return;
+        
+        const position = verse.word_alignment[posIdx];
+        if (!position) return;
+        
+        // Construire l'objet words et pages
+        const words = {};
+        const pages = {};
+        
+        for (let i = 0; i < 3; i++) {
+            const wordData = position.words.find(w => w.witness_index === i);
+            words[witnessNames[i]] = wordData?.missing ? '∅' : (wordData?.text || '');
+            pages[witnessNames[i]] = verse.witnesses[i]?.metadata?.page || '';
+        }
+        
+        // Créer la décision
+        const decision = {
+            verse_number: verseNum,
+            position: posIdx,
+            action: 'ignorer',
+            explication: explication || null,
+            words: words,
+            pages: pages
+        };
+        
+        // Sauvegarder en mémoire
+        collationState.wordDecisions[key] = decision;
+    });
+    
+    console.log(`${checkboxes.length} décision(s) "ignorer" appliquée(s)`);
+    
+    // Fermer le modal "Ignorer partout"
+    const ignoreEverywhereModal = bootstrap.Modal.getInstance(document.getElementById('ignoreEverywhereModal'));
+    if (ignoreEverywhereModal) ignoreEverywhereModal.hide();
+    
+    // Rafraîchir l'affichage
+    displayCollationResults();
+}
+
+// Exposer les nouvelles fonctions globalement
+window.openIgnoreEverywhereModal = openIgnoreEverywhereModal;
+window.toggleAllIgnoreEverywhere = toggleAllIgnoreEverywhere;
+window.applyIgnoreEverywhere = applyIgnoreEverywhere;
