@@ -8,7 +8,7 @@
 4. [Étapes de la collation](#étapes-de-la-collation)
    - [Étape 1 : Sélection de l'œuvre](#étape-1--sélection-de-lœuvre)
    - [Étape 2 : Sélection des témoins](#étape-2--sélection-des-témoins)
-   - [Étape 3 : Sélection du chapitre](#étape-3--sélection-du-chapitre)
+   - [Étape 3 : Validation et sélection du chapitre](#étape-3--validation-et-sélection-du-chapitre)
    - [Étape 4 : Lancement de la collation](#étape-4--lancement-de-la-collation)
    - [Étape 5 : Qualification des variantes](#étape-5--qualification-des-variantes)
    - [Étape 6 : Sauvegarde et export](#étape-6--sauvegarde-et-export)
@@ -145,20 +145,48 @@ Si votre œuvre a moins de 3 témoins :
 
 ---
 
-### Étape 3 : Sélection du chapitre
+### Étape 3 : Validation et sélection du chapitre
 
-Une fois 3 témoins sélectionnés, la section "Sélection du chapitre" s'active.
+Une fois 3 témoins sélectionnés, la section "Validation des chapitres" s'active automatiquement.
 
-#### 3.1 Choisir un chapitre
+#### 3.1 Validation des chapitres
 
-- Le menu déroulant affiche la liste des chapitres disponibles
+L'application vérifie la compatibilité des chapitres entre les 3 témoins sélectionnés.
+
+**Affichage :**
+- Résumé du nombre de chapitres par témoin
+- Indication si les chapitres sont compatibles ou non
+- Bouton "Modifier les chapitres" (jaune) pour configurer les exclusions
+
+#### 3.2 Configurer les chapitres (éditeur)
+
+Cliquez sur **"Modifier les chapitres"** pour ouvrir l'éditeur de configuration :
+
+**Interface de l'éditeur :**
+- Tableau avec une colonne par témoin
+- Chaque ligne représente un chapitre (N° 0, 1, 2, etc.)
+- Cases à cocher pour inclure/exclure chaque chapitre par témoin
+
+**Actions disponibles :**
+- **Cocher/Décocher** : Inclure ou exclure un chapitre pour un témoin spécifique
+- **Enregistrer** (bouton vert) : Sauvegarder les modifications
+- **Annuler** (bouton gris) : Annuler les modifications non enregistrées
+- **Réinitialiser** (bouton rouge) : Remettre tous les chapitres à l'état initial (tous inclus)
+
+> **💡 Utilité** : Si un témoin a des chapitres supplémentaires ou manquants, vous pouvez les exclure pour que les 3 témoins aient le même nombre de chapitres à comparer.
+
+#### 3.3 Choisir un chapitre
+
+Une fois les chapitres validés :
+
+- Le menu déroulant affiche la liste des chapitres disponibles (compatibles entre les 3 témoins)
 - Sélectionnez le chapitre à collationner
 
 **Affichage :**
 - Menu déroulant avec la liste "Chapitre 0", "Chapitre 1", etc.
 - Bouton "Lancer la collation" (bleu) à droite du menu
 
-> **📖 Note** : Les numéros de chapitres correspondent aux indices dans le fichier JSON (0 = chapitre 1).
+> **📖 Note** : Les numéros de chapitres correspondent aux indices dans le fichier JSON (0 = chapitre 1). Seuls les chapitres non exclus apparaissent dans la liste.
 
 ---
 
@@ -239,10 +267,30 @@ Choisissez une action :
 - **Conserver** (bouton vert) : Variante pertinente à garder dans l'édition critique
 - **Ignorer** (bouton gris) : Variante non pertinente (ex: différence graphique mineure)
 - **À vérifier** (bouton orange) : Variante nécessitant une analyse plus approfondie
+- **Ignorer partout** (bouton bleu) : Ignorer toutes les variantes similaires dans le chapitre
 
 Cliquez sur le bouton correspondant à votre choix. Le modal se ferme automatiquement après la sélection.
 
-#### 5.4 Résultat après qualification
+#### 5.4 Ignorer partout - Variantes similaires
+
+Le bouton **"Ignorer partout"** permet d'ignorer automatiquement toutes les positions du chapitre où les 3 témoins présentent des mots provenant du même ensemble de variantes.
+
+**Fonctionnement :**
+1. Cliquez sur **"Ignorer partout"** dans le modal d'une variante
+2. Un modal de confirmation s'ouvre, listant toutes les variantes similaires trouvées
+3. Chaque variante est cochée par défaut (sauf celles déjà ignorées)
+4. Décochez les variantes que vous ne souhaitez pas ignorer
+5. Ajoutez une explication optionnelle dans le champ texte
+6. Cliquez sur **"Valider"** pour appliquer
+
+**Critères de similarité :**
+- Recherche des positions où les 3 témoins ont des mots appartenant au même ensemble de variantes
+- Exclut les positions où les 3 témoins sont identiques
+- Permet un traitement par lot efficace des variantes répétitives
+
+> **💡 Exemple** : Si vous avez "ainsi/ainsy/ainsy" à plusieurs positions, "Ignorer partout" les traitera toutes en une seule action.
+
+#### 5.5 Résultat après qualification
 
 Après qualification, la variante change de couleur dans l'interface :
 
@@ -253,6 +301,9 @@ Après qualification, la variante change de couleur dans l'interface :
 
 Les décisions sont sauvegardées automatiquement et visibles immédiatement dans le tableau.
 
+**Interface visuelle :**
+- Les en-têtes des colonnes témoins sont affichés avec un fond gris foncé et texte blanc pour une meilleure lisibilité
+
 ---
 
 ### Étape 6 : Sauvegarde et export
@@ -262,12 +313,17 @@ Les décisions sont sauvegardées automatiquement et visibles immédiatement dan
 Les décisions sont **sauvegardées automatiquement** en temps réel dans :
 
 ```
-data/decisions/{nom_oeuvre}_chapter_{numero}_words.json
+data/decisions/{nom_oeuvre}_witnesses_{temoin1}_{temoin2}_{temoin3}.json
 ```
 
-Exemple : `data/decisions/roman_de_la_rose_chapter_0_words.json`
+Exemple : `data/decisions/roman_de_la_rose_witnesses_bnf_1712_bnf_2820_chantilly.json`
 
-> **💡 Astuce** : Si vous rechargez la page ou revenez au même chapitre, vos décisions sont automatiquement restaurées.
+**Système de décisions par configuration :**
+- Un fichier de décisions distinct est créé pour chaque combinaison unique d'œuvre et de 3 témoins
+- Cela permet de conserver des décisions différentes selon les témoins comparés
+- Si vous changez de témoins, un nouveau fichier de décisions est créé
+
+> **💡 Astuce** : Si vous rechargez la page ou revenez à la même configuration (mêmes 3 témoins), vos décisions sont automatiquement restaurées.
 
 #### 6.2 Sauvegarder toutes les décisions (export manuel)
 

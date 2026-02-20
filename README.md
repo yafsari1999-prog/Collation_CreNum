@@ -8,8 +8,11 @@ Outil web pour assister les chercheurs dans la comparaison de plusieurs versions
 
 **Fonctionnalités :**
 - Collation automatique avec CollateX
-- Visualisation des variantes en parallèle
-- Qualification des différences
+- Visualisation des variantes en parallèle (3 colonnes)
+- Qualification des différences (conserver, ignorer, à vérifier)
+- **"Ignorer partout"** : traitement par lot des variantes similaires
+- **Configuration des chapitres** : validation et exclusion de chapitres par témoin
+- Système de décisions par configuration (sauvegarde distincte par combinaison de témoins)
 - Gestion des équivalences orthographiques
 
 **📌 Caractéristique importante :**
@@ -55,6 +58,9 @@ Puis ouvrir **http://localhost:5001** dans votre navigateur.
 - **[INSTALLATION.md](INSTALLATION.md)** - Installation et configuration détaillées
 - **[GUIDE_UTILISATEUR.md](GUIDE_UTILISATEUR.md)** - Guide d'utilisation complet avec exemples
 - **[DONNEES.md](DONNEES.md)** - Format des données et structure des fichiers
+- **[DOCUMENTATION_TECHNIQUE.md](DOCUMENTATION_TECHNIQUE.md)** - Documentation technique pour les développeurs
+- **[COMPTE_RENDU.md](COMPTE_RENDU.md)** - Bilan du projet (cahier des charges vs réalisation)
+- **[DOCUMENTATION_TECHNIQUE.md](DOCUMENTATION_TECHNIQUE.md)** - Documentation technique pour les développeurs
 
 ---
 
