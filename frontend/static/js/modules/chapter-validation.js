@@ -195,6 +195,19 @@ function buildChapterTable() {
     for (let i = 0; i < maxActiveChapters; i++) {
         let row = `<tr><td class="text-center fw-bold">${i + 1}</td>`;
         
+        // Collecter tous les chapitres de cette ligne pour comparaison
+        const chaptersInRow = [];
+        for (const witId of validationData.witness_order) {
+            const activeChapter = witnessActiveChapters[witId][i];
+            if (activeChapter) {
+                chaptersInRow.push({
+                    witId: witId,
+                    verses: activeChapter.data.mainzone_verses,
+                    originalIndex: activeChapter.originalIndex
+                });
+            }
+        }
+        
         for (const witId of validationData.witness_order) {
             const activeChapter = witnessActiveChapters[witId][i];
             
@@ -202,9 +215,26 @@ function buildChapterTable() {
                 const originalIndex = activeChapter.originalIndex;
                 const verses = activeChapter.data.mainzone_verses;
                 
+                // Déterminer le message d'aide
+                let helpBadge = '';
+                if (verses === 0) {
+                    helpBadge = '<span class="badge bg-danger ms-1">⚠️ Chapitre vide</span>';
+                } else {
+                    // Compter combien d'autres témoins ont au moins le double de vers
+                    const othersWithDoubleVerses = chaptersInRow.filter(ch => 
+                        ch.witId !== witId && ch.verses >= verses * 2
+                    ).length;
+                    
+                    if (othersWithDoubleVerses >= 2) {
+                        helpBadge = '<span class="badge bg-warning text-dark ms-1">⚠️ Très peu de contenu</span>';
+                    }
+                }
+                
                 row += `<td>`;
                 row += `<div class="d-flex justify-content-between align-items-center">`;
-                row += `<span><strong>[${originalIndex + 1}]</strong> ${verses} vers</span>`;
+                row += `<div>`;
+                row += `<strong>[${originalIndex + 1}]</strong> ${verses} vers${helpBadge}`;
+                row += `</div>`;
                 row += `<button class="btn btn-sm btn-danger" onclick="window.excludeChapter('${witId}', ${originalIndex})"><i class="bi bi-trash"></i></button>`;
                 row += `</div>`;
                 row += `</td>`;
