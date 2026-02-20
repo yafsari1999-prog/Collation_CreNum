@@ -4,7 +4,7 @@
 
 import { appState } from './state.js';
 import { loadChapters, enableChapterSection, disableChapterSection } from './chapters.js';
-import { validateChapters, resetValidation } from './chapter-validation.js';
+import { validateChapters, resetValidation, removeWitnessExclusions } from './chapter-validation.js';
 import * as API from './api.js';
 
 /**
@@ -109,13 +109,20 @@ export async function updateWitnessesList() {
     if (selectedCount === 0 && sortedWitnesses.length > 0) {
         const witnessesToSelect = sortedWitnesses.slice(0, Math.min(3, sortedWitnesses.length));
         
+        console.log('Auto-sélection des premiers témoins:', witnessesToSelect.map(w => w.id));
+        
         witnessesToSelect.forEach((witness, idx) => {
-            appState.selectedWitnesses[idx] = witness.id;
-            const checkbox = document.getElementById(`witness-${witness.id}`);
-            if (checkbox) {
-                checkbox.checked = true;
+            // Vérifier que le témoin n'est pas déjà présent (sécurité)
+            if (!appState.selectedWitnesses.includes(witness.id)) {
+                appState.selectedWitnesses[idx] = witness.id;
+                const checkbox = document.getElementById(`witness-${witness.id}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
             }
         });
+        
+        console.log('selectedWitnesses après auto-sélection:', appState.selectedWitnesses);
     }
     
     // Vérifier si on a exactement 3 témoins sélectionnés pour activer la section chapitres
@@ -132,10 +139,16 @@ export async function updateWitnessesList() {
 /**
  * Gère le changement d'état d'une checkbox de témoin
  */
-export function onWitnessCheckboxChanged(event, witnessId) {
+export async function onWitnessCheckboxChanged(event, witnessId) {
     const checkbox = event.target;
     
     if (checkbox.checked) {
+        // Vérifier si le témoin n'est pas déjà sélectionné (prévenir doublons)
+        if (appState.selectedWitnesses.includes(witnessId)) {
+            console.warn(`Témoin ${witnessId} déjà sélectionné, ignoré`);
+            return; // Déjà présent, ne rien faire
+        }
+        
         // Vérifier si on n'a pas déjà 3 témoins sélectionnés
         const selectedCount = appState.selectedWitnesses.filter(w => w !== null).length;
         
@@ -149,6 +162,8 @@ export function onWitnessCheckboxChanged(event, witnessId) {
         for (let i = 0; i < 3; i++) {
             if (appState.selectedWitnesses[i] === null) {
                 appState.selectedWitnesses[i] = witnessId;
+                console.log(`Témoin ${witnessId} ajouté à l'index ${i}`);
+                console.log('selectedWitnesses:', appState.selectedWitnesses);
                 break;
             }
         }
@@ -158,6 +173,8 @@ export function onWitnessCheckboxChanged(event, witnessId) {
         if (index !== -1) {
             appState.selectedWitnesses.splice(index, 1);
             appState.selectedWitnesses.push(null);
+            console.log(`Témoin ${witnessId} retiré de l'index ${index}`);
+            console.log('selectedWitnesses:', appState.selectedWitnesses);
         }
     }
     
@@ -166,7 +183,8 @@ export function onWitnessCheckboxChanged(event, witnessId) {
     
     if (allSelected) {
         // Valider les chapitres
-        validateChapters();
+        console.log('3 témoins sélectionnés, validation des chapitres...');
+        await validateChapters();
     } else {
         resetValidation();
         disableChapterSection();
@@ -255,11 +273,22 @@ export async function addWitness() {
             
             // Sélectionner automatiquement le nouveau témoin si < 3 sont sélectionnés
             const selectedCount = appState.selectedWitnesses.filter(w => w !== null).length;
-            if (selectedCount < 3) {
-                const checkbox = document.getElementById(`witness-${data.witness.id}`);
-                if (checkbox) {
-                    checkbox.checked = true;
-                    onWitnessCheckboxChanged({ target: checkbox }, data.witness.id);
+            if (selectedCount < 3 && data.witness && data.witness.id) {
+                // Vérifier que le témoin n'est pas déjà dans le tableau (prévenir doublons)
+                if (!appState.selectedWitnesses.includes(data.witness.id)) {
+                    // Ajouter le témoin à la première position libre
+                    for (let i = 0; i < 3; i++) {
+                        if (appState.selectedWitnesses[i] === null) {
+                            appState.selectedWitnesses[i] = data.witness.id;
+                            console.log(`Nouveau témoin ${data.witness.id} auto-sélectionné à l'index ${i}`);
+                            break;
+                        }
+                    }
+                    
+                    // Recharger la liste pour afficher la checkbox cochée
+                    await updateWitnessesList();
+                } else {
+                    console.warn(`Témoin ${data.witness.id} déjà sélectionné, pas de doublon`);
                 }
             }
         } else {
@@ -349,6 +378,9 @@ export async function deleteWitness() {
             if (index !== -1) {
                 appState.selectedWitnesses[index] = null;
             }
+            
+            // Supprimer les exclusions de chapitres pour ce témoin
+            removeWitnessExclusions(witnessId);
             
             // Recharger les témoins
             await loadWitnesses(workId);

@@ -208,35 +208,61 @@ class WordDecisionManager:
         self.decisions_dir = decisions_dir
         os.makedirs(decisions_dir, exist_ok=True)
     
-    def _get_file(self, work_id, chapter_index):
-        """Fichier dédié aux décisions de mots."""
-        filename = f"{work_id}_chapter_{chapter_index}_words.json"
+    def _get_file(self, work_id, witnesses):
+        """
+        Fichier dédié aux décisions de mots pour une configuration œuvre + témoins.
+        Format: {work_id}_witnesses_{wit1}_{wit2}_{wit3}.json
+        """
+        # Trier les témoins pour toujours avoir le même nom de fichier
+        witness_ids = sorted([w.split('/')[-1].replace('.json', '') for w in witnesses])
+        witness_str = '_'.join(witness_ids)
+        filename = f"{work_id}_witnesses_{witness_str}.json"
         return os.path.join(self.decisions_dir, filename)
     
-    def _load(self, work_id, chapter_index):
-        file_path = self._get_file(work_id, chapter_index)
+    def _load(self, work_id, witnesses):
+        """Charge le fichier de décisions pour l'œuvre + témoins."""
+        file_path = self._get_file(work_id, witnesses)
         if not os.path.exists(file_path):
-            return {'work_id': work_id, 'chapter_index': chapter_index, 'decisions': []}
+            return {
+                'work_id': work_id,
+                'witnesses': witnesses,
+                'excluded_chapters': {},
+                'chapters': {}
+            }
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                # Assurer la structure
+                if 'chapters' not in data:
+                    data['chapters'] = {}
+                if 'excluded_chapters' not in data:
+                    data['excluded_chapters'] = {}
+                return data
         except Exception as e:
             print(f"Erreur chargement décisions mots: {e}")
-            return {'work_id': work_id, 'chapter_index': chapter_index, 'decisions': []}
+            return {
+                'work_id': work_id,
+                'witnesses': witnesses,
+                'excluded_chapters': {},
+                'chapters': {}
+            }
     
-    def _save(self, work_id, chapter_index, data):
-        file_path = self._get_file(work_id, chapter_index)
+    def _save(self, work_id, witnesses, data):
+        """Sauvegarde le fichier de décisions."""
+        file_path = self._get_file(work_id, witnesses)
         data['last_modified'] = datetime.now().isoformat()
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     
-    def save_word_decision(self, work_id, chapter_index, verse_number, position,
-                           action, explication=None, words=None, pages=None):
+    def save_word_decision(self, work_id, witnesses, excluded_chapters, chapter_index, 
+                           verse_number, position, action, explication=None, words=None, pages=None):
         """
         Sauvegarde une décision pour un mot.
         
         Args:
             work_id: ID de l'œuvre
+            witnesses: Liste des 3 témoins
+            excluded_chapters: Dict {witness_name: [chapters]} des chapitres exclus
             chapter_index: Index du chapitre
             verse_number: Numéro du vers
             position: Index de position du mot dans l'alignement
@@ -245,7 +271,16 @@ class WordDecisionManager:
             words: Dict {witness_name: word_text}
             pages: Dict {witness_name: page_number}
         """
-        data = self._load(work_id, chapter_index)
+        data = self._load(work_id, witnesses)
+        
+        # Mettre à jour les métadonnées
+        data['witnesses'] = witnesses
+        data['excluded_chapters'] = excluded_chapters or {}
+        
+        # Créer le chapitre s'il n'existe pas
+        chapter_key = str(chapter_index)
+        if chapter_key not in data['chapters']:
+            data['chapters'][chapter_key] = {'decisions': []}
         
         decision = {
             'verse_number': verse_number,
@@ -258,81 +293,97 @@ class WordDecisionManager:
         }
         
         # Remplacer si existant
+        chapter_decisions = data['chapters'][chapter_key]['decisions']
         existing_idx = None
-        for i, dec in enumerate(data['decisions']):
+        for i, dec in enumerate(chapter_decisions):
             if dec['verse_number'] == verse_number and dec['position'] == position:
                 existing_idx = i
                 break
         
         if existing_idx is not None:
-            data['decisions'][existing_idx] = decision
+            chapter_decisions[existing_idx] = decision
         else:
-            data['decisions'].append(decision)
+            chapter_decisions.append(decision)
         
-        self._save(work_id, chapter_index, data)
+        self._save(work_id, witnesses, data)
         return True
     
-    def load_word_decisions(self, work_id, chapter_index):
+    def load_word_decisions(self, work_id, witnesses, chapter_index):
         """Charge toutes les décisions de mots pour un chapitre."""
-        data = self._load(work_id, chapter_index)
-        return data.get('decisions', [])
+        data = self._load(work_id, witnesses)
+        chapter_key = str(chapter_index)
+        
+        if chapter_key in data.get('chapters', {}):
+            return data['chapters'][chapter_key].get('decisions', [])
+        return []
     
-    def delete_word_decision(self, work_id, chapter_index, verse_number, position):
+    def delete_word_decision(self, work_id, witnesses, chapter_index, verse_number, position):
         """Supprime une décision de mot."""
-        data = self._load(work_id, chapter_index)
-        original = len(data['decisions'])
-        data['decisions'] = [
-            d for d in data['decisions']
+        data = self._load(work_id, witnesses)
+        chapter_key = str(chapter_index)
+        
+        if chapter_key not in data.get('chapters', {}):
+            return False
+        
+        chapter_decisions = data['chapters'][chapter_key]['decisions']
+        original = len(chapter_decisions)
+        
+        data['chapters'][chapter_key]['decisions'] = [
+            d for d in chapter_decisions
             if not (d['verse_number'] == verse_number and d['position'] == position)
         ]
-        self._save(work_id, chapter_index, data)
-        return len(data['decisions']) < original
+        
+        self._save(work_id, witnesses, data)
+        return len(data['chapters'][chapter_key]['decisions']) < original
     
-    def count_all_decisions(self, work_id):
+    def get_configuration(self, work_id, witnesses):
         """
-        Compte toutes les décisions de mots pour une œuvre.
+        Récupère la configuration (témoins, chapitres exclus) pour vérification.
+        """
+        data = self._load(work_id, witnesses)
+        return {
+            'witnesses': data.get('witnesses', []),
+            'excluded_chapters': data.get('excluded_chapters', {}),
+            'has_decisions': any(
+                len(ch.get('decisions', [])) > 0 
+                for ch in data.get('chapters', {}).values()
+            )
+        }
+    
+    def count_all_decisions(self, work_id, witnesses):
+        """
+        Compte toutes les décisions de mots pour une œuvre + témoins.
         
         Args:
             work_id: ID de l'œuvre
+            witnesses: Liste des témoins
             
         Returns:
             Nombre total de décisions
         """
-        import glob
-        pattern = os.path.join(self.decisions_dir, f"{work_id}_chapter_*_words.json")
-        files = glob.glob(pattern)
-        
+        data = self._load(work_id, witnesses)
         total = 0
-        for file_path in files:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    total += len(data.get('decisions', []))
-            except Exception as e:
-                print(f"Erreur lecture {file_path}: {e}")
-        
+        for chapter in data.get('chapters', {}).values():
+            total += len(chapter.get('decisions', []))
         return total
     
-    def delete_all_decisions(self, work_id):
+    def delete_all_decisions(self, work_id, witnesses):
         """
-        Supprime toutes les décisions de mots pour une œuvre.
+        Supprime toutes les décisions de mots pour une œuvre + témoins.
         
         Args:
             work_id: ID de l'œuvre
+            witnesses: Liste des témoins
             
         Returns:
-            Nombre de fichiers supprimés
+            True si le fichier a été supprimé
         """
-        import glob
-        pattern = os.path.join(self.decisions_dir, f"{work_id}_chapter_*_words.json")
-        files = glob.glob(pattern)
-        
-        deleted = 0
-        for file_path in files:
+        file_path = self._get_file(work_id, witnesses)
+        if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-                deleted += 1
+                return True
             except Exception as e:
                 print(f"Erreur suppression {file_path}: {e}")
-        
-        return deleted
+                return False
+        return False

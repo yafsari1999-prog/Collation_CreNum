@@ -245,18 +245,34 @@ export async function deleteDecision(workId, chapterIndex, verseNumber) {
     }
 }
 
-export async function countAllDecisions(workId) {
+export async function countAllDecisions(workId, witnesses) {
     try {
-        const response = await fetch(`/api/count-decisions/${workId}`);
+        if (!witnesses || witnesses.length !== 3) {
+            throw new Error('Les 3 témoins sont requis');
+        }
+        
+        const wit1 = encodeURIComponent(witnesses[0]);
+        const wit2 = encodeURIComponent(witnesses[1]);
+        const wit3 = encodeURIComponent(witnesses[2]);
+        
+        const response = await fetch(`/api/count-decisions/${workId}?wit1=${wit1}&wit2=${wit2}&wit3=${wit3}`);
         return await handleResponse(response);
     } catch (error) {
         handleFetchError(error);
     }
 }
 
-export async function deleteAllDecisions(workId) {
+export async function deleteAllDecisions(workId, witnesses) {
     try {
-        const response = await fetch(`/api/delete-all-decisions/${workId}`, {
+        if (!witnesses || witnesses.length !== 3) {
+            throw new Error('Les 3 témoins sont requis');
+        }
+        
+        const wit1 = encodeURIComponent(witnesses[0]);
+        const wit2 = encodeURIComponent(witnesses[1]);
+        const wit3 = encodeURIComponent(witnesses[2]);
+        
+        const response = await fetch(`/api/delete-all-decisions/${workId}?wit1=${wit1}&wit2=${wit2}&wit3=${wit3}`, {
             method: 'DELETE'
         });
         return await handleResponse(response);

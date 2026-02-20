@@ -354,17 +354,24 @@ function checkChaptersCompatibility() {
  */
 export async function saveChapterSelection() {
     const workId = appState.selectedWork;
+    const witnesses = appState.selectedWitnesses;
     
     try {
+        // Vérifier que les 3 témoins sont sélectionnés
+        if (!witnesses.every(w => w !== null)) {
+            alert('⚠️ Veuillez sélectionner les 3 témoins avant de sauvegarder.');
+            return;
+        }
+        
         // Vérifier si des décisions existent
-        const countResult = await API.countAllDecisions(workId);
+        const countResult = await API.countAllDecisions(workId, witnesses);
         const decisionsCount = countResult?.count || 0;
         
         if (decisionsCount > 0) {
             // Afficher un avertissement
             const confirmed = confirm(
                 `⚠️ ATTENTION ⚠️\n\n` +
-                `Vous avez ${decisionsCount} décision${decisionsCount > 1 ? 's' : ''} enregistrée${decisionsCount > 1 ? 's' : ''} pour cette œuvre.\n\n` +
+                `Vous avez ${decisionsCount} décision${decisionsCount > 1 ? 's' : ''} enregistrée${decisionsCount > 1 ? 's' : ''} pour cette configuration.\n\n` +
                 `Si vous modifiez les chapitres, TOUTES les décisions seront PERDUES.\n\n` +
                 `💡 Pensez à exporter vos décisions avant de continuer.\n\n` +
                 `Voulez-vous vraiment continuer et supprimer toutes les décisions ?`
@@ -375,7 +382,7 @@ export async function saveChapterSelection() {
             }
             
             // Supprimer toutes les décisions
-            await API.deleteAllDecisions(workId);
+            await API.deleteAllDecisions(workId, witnesses);
         }
         
         // Sauvegarder les modifications dans l'etat local et global
@@ -539,11 +546,16 @@ export async function updateExportButton() {
     let totalDecisions = 0;
     const workId = appState.selectedWork;
     const validChapters = appState.validChapters || [];
+    const witnesses = appState.selectedWitnesses;
     
-    if (workId && validChapters.length > 0) {
+    if (workId && validChapters.length > 0 && witnesses.every(w => w !== null)) {
         try {
+            const wit1 = encodeURIComponent(witnesses[0]);
+            const wit2 = encodeURIComponent(witnesses[1]);
+            const wit3 = encodeURIComponent(witnesses[2]);
+            
             for (const chapter of validChapters) {
-                const response = await fetch(`/api/word-decisions/${workId}/${chapter.index}`);
+                const response = await fetch(`/api/word-decisions/${workId}/${chapter.index}?wit1=${wit1}&wit2=${wit2}&wit3=${wit3}`);
                 if (response.ok) {
                     const result = await response.json();
                     if (result.status === 'success') {
@@ -615,6 +627,24 @@ export function resetAllChapters() {
     
     // Mettre a jour les boutons
     updateActionButtons();
+}
+
+/**
+ * Supprime les exclusions d'un témoin spécifique (appelé lors de la suppression d'un témoin)
+ */
+export function removeWitnessExclusions(witnessId) {
+    // Supprimer des variables locales
+    if (excludedChapters[witnessId]) {
+        delete excludedChapters[witnessId];
+    }
+    if (savedExcludedChapters[witnessId]) {
+        delete savedExcludedChapters[witnessId];
+    }
+    
+    // Supprimer de appState (déjà fait dans witnesses.js, mais par sécurité)
+    if (appState.excludedChapters && appState.excludedChapters[witnessId]) {
+        delete appState.excludedChapters[witnessId];
+    }
 }
 
 /**
