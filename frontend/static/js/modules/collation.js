@@ -72,6 +72,14 @@ export async function launchCollation() {
             // Afficher les résultats
             displayCollationResults();
             
+            // Mettre à jour le bouton export
+            try {
+                const { updateExportButton } = await import('./chapter-validation.js');
+                await updateExportButton();
+            } catch (e) {
+                console.warn('Impossible de mettre à jour le bouton export:', e);
+            }
+            
             collationLoading.style.display = 'none';
             collationTable.style.display = 'block';
             collationFooter.style.display = 'block';

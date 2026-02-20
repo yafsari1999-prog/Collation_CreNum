@@ -489,9 +489,19 @@ export async function clearWordDecision() {
 export async function loadWordDecisions() {
     if (!appState.selectedWork || appState.selectedChapter === null) return;
     
+    // Vérifier que les 3 témoins sont sélectionnés
+    if (!appState.selectedWitnesses.every(w => w !== null)) {
+        console.warn('Les 3 témoins doivent être sélectionnés pour charger les décisions');
+        return;
+    }
+    
     try {
+        const wit1 = encodeURIComponent(appState.selectedWitnesses[0]);
+        const wit2 = encodeURIComponent(appState.selectedWitnesses[1]);
+        const wit3 = encodeURIComponent(appState.selectedWitnesses[2]);
+        
         const response = await fetch(
-            `/api/word-decisions/${appState.selectedWork}/${appState.selectedChapter}`
+            `/api/word-decisions/${appState.selectedWork}/${appState.selectedChapter}?wit1=${wit1}&wit2=${wit2}&wit3=${wit3}`
         );
         const data = await response.json();
         
@@ -531,7 +541,7 @@ export function showConservedVariants() {
     
     const tbody = document.getElementById('conserved-variants-tbody');
     const countBadge = document.getElementById('conserved-variants-count');
-    const witnessNames = collationState.results?.witnesses || ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    const witnessNames = getSelectedWitnessNames();
     
     // Mettre à jour les en-têtes avec les noms de témoins
     for (let i = 0; i < 3; i++) {
@@ -679,7 +689,7 @@ export function showCurrentDecisions() {
     
     const tbody = document.getElementById('current-decisions-tbody');
     const countBadge = document.getElementById('current-decisions-count');
-    const witnessNames = collationState.results?.witnesses || ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    const witnessNames = getSelectedWitnessNames();
     
     // Mettre à jour les en-têtes avec les noms de témoins
     for (let i = 0; i < 3; i++) {
@@ -840,10 +850,14 @@ export async function saveAllDecisions() {
     const currentKeys = Object.keys(decisions);
     const deletedKeys = savedKeys.filter(k => !currentKeys.includes(k));
     
+    const wit1 = encodeURIComponent(appState.selectedWitnesses[0]);
+    const wit2 = encodeURIComponent(appState.selectedWitnesses[1]);
+    const wit3 = encodeURIComponent(appState.selectedWitnesses[2]);
+    
     for (const key of deletedKeys) {
         const old = collationState.savedWordDecisions[key];
         try {
-            await fetch(`/api/word-decisions/${appState.selectedWork}/${appState.selectedChapter}/${old.verse_number}/${old.position}`, {
+            await fetch(`/api/word-decisions/${appState.selectedWork}/${appState.selectedChapter}/${old.verse_number}/${old.position}?wit1=${wit1}&wit2=${wit2}&wit3=${wit3}`, {
                 method: 'DELETE'
             });
         } catch (e) {
@@ -859,6 +873,8 @@ export async function saveAllDecisions() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     work_id: appState.selectedWork,
+                    witnesses: appState.selectedWitnesses,
+                    excluded_chapters: appState.excludedChapters || {},
                     chapter_index: appState.selectedChapter,
                     verse_number: dec.verse_number,
                     position: dec.position,
@@ -981,18 +997,49 @@ function createExportModal() {
 }
 
 /**
+ * Récupère les noms des témoins sélectionnés
+ */
+function getSelectedWitnessNames() {
+    // Si on a les résultats de collation, utiliser les noms de là
+    if (collationState.results?.witnesses) {
+        return collationState.results.witnesses;
+    }
+    
+    // Sinon, récupérer les noms depuis appState.witnesses
+    const names = [];
+    for (const witnessId of appState.selectedWitnesses) {
+        if (witnessId !== null) {
+            const witness = appState.witnesses.find(w => w.id === witnessId);
+            names.push(witness ? witness.name : witnessId);
+        }
+    }
+    
+    // Si on n'a pas trouvé les noms, utiliser les IDs comme fallback
+    if (names.length === 0) {
+        return appState.selectedWitnesses.filter(w => w !== null);
+    }
+    
+    return names;
+}
+
+/**
  * Prépare les données d'export (variantes conservées) pour TOUS les chapitres validés.
  * Utilise les numéros de chapitres artificiels (normalisés).
  */
 async function getExportDataAllChapters() {
     const workId = appState.selectedWork;
     const validChapters = appState.validChapters || [];
-    // Utiliser les vrais noms des témoins depuis collationState (pas les IDs)
-    const witnessNames = collationState.results?.witnesses || 
-                         ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    const witnesses = appState.selectedWitnesses;
+    // Récupérer les vrais noms des témoins
+    const witnessNames = getSelectedWitnessNames();
     
     if (!workId || validChapters.length === 0) {
         // Fallback: utiliser les données du chapitre courant
+        return getExportDataCurrentChapter();
+    }
+    
+    if (!witnesses || witnesses.length !== 3 || witnesses.some(w => w === null)) {
+        console.error('Témoins manquants pour l\'export');
         return getExportDataCurrentChapter();
     }
     
@@ -1003,7 +1050,8 @@ async function getExportDataAllChapters() {
             body: JSON.stringify({
                 work_id: workId,
                 valid_chapters: validChapters,
-                witness_names: witnessNames
+                witness_names: witnessNames,
+                witnesses: witnesses
             })
         });
         
@@ -1042,9 +1090,8 @@ async function getExportDataAllChapters() {
 function getExportDataCurrentChapter() {
     const decisions = collationState.wordDecisions || {};
     const conserved = Object.values(decisions).filter(d => d.action === 'conserver');
-    // Utiliser les vrais noms des témoins depuis collationState (pas les IDs)
-    const witnessNames = collationState.results?.witnesses || 
-                         ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    // Récupérer les vrais noms des témoins
+    const witnessNames = getSelectedWitnessNames();
     
     conserved.sort((a, b) => {
         if (a.verse_number !== b.verse_number) return a.verse_number - b.verse_number;
@@ -1173,7 +1220,6 @@ function findSimilarVariantsInChapter(currentVerseNumber, currentPosIndex) {
     if (!currentPosition) return results;
     
     // Extraire les mots du témoin actuel (normalisés)
-    const witnessNames = collationState.results?.witnesses || [];
     const currentWords = [];
     
     for (let i = 0; i < 3; i++) {
@@ -1307,7 +1353,7 @@ function openIgnoreEverywhereModal() {
     const chapterEl = document.getElementById('ignore-everywhere-chapter');
     const countEl = document.getElementById('ignore-everywhere-count');
     const tbody = document.getElementById('ignore-everywhere-tbody');
-    const witnessNames = collationState.results?.witnesses || ['Témoin 1', 'Témoin 2', 'Témoin 3'];
+    const witnessNames = getSelectedWitnessNames();
     
     if (chapterEl) chapterEl.textContent = appState.selectedChapter ?? '';
     if (countEl) countEl.textContent = similarVariants.length;
@@ -1397,7 +1443,7 @@ function applyIgnoreEverywhere() {
     }
     
     const explication = document.getElementById('word-explication').value;
-    const witnessNames = collationState.results?.witnesses || [];
+    const witnessNames = getSelectedWitnessNames();
     
     // Initialiser wordDecisions si nécessaire
     if (!collationState.wordDecisions) {

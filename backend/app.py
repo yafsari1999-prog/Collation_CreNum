@@ -462,22 +462,29 @@ def handle_annotations():
 def save_word_decision():
     """
     Sauvegarde une décision de mot (conserver / ignorer).
-    Attend: {work_id, chapter_index, verse_number, position, action, explication, words, pages}
+    Attend: {work_id, witnesses, excluded_chapters, chapter_index, verse_number, position, action, explication, words, pages}
     """
     data = request.json
     
     work_id = data.get('work_id')
+    witnesses = data.get('witnesses', [])
+    excluded_chapters = data.get('excluded_chapters', {})
     chapter_index = data.get('chapter_index')
     verse_number = data.get('verse_number')
     position = data.get('position')
     action = data.get('action', 'conserver')
     
-    if not all([work_id, chapter_index is not None, verse_number is not None, position is not None]):
+    if not all([work_id, witnesses, chapter_index is not None, verse_number is not None, position is not None]):
         return jsonify({"status": "error", "message": "Paramètres manquants"}), 400
+    
+    if len(witnesses) != 3:
+        return jsonify({"status": "error", "message": "Exactement 3 témoins requis"}), 400
     
     try:
         word_decision_manager.save_word_decision(
             work_id=work_id,
+            witnesses=witnesses,
+            excluded_chapters=excluded_chapters,
             chapter_index=chapter_index,
             verse_number=verse_number,
             position=position,
@@ -495,9 +502,19 @@ def save_word_decision():
 def get_word_decisions(work_id, chapter_index):
     """
     Récupère toutes les décisions de mots pour un chapitre.
+    Nécessite les témoins en paramètre (wit1, wit2, wit3).
     """
+    witnesses = [
+        request.args.get('wit1'),
+        request.args.get('wit2'),
+        request.args.get('wit3')
+    ]
+    
+    if not all(witnesses):
+        return jsonify({"status": "error", "message": "Les 3 témoins sont requis (wit1, wit2, wit3)"}), 400
+    
     try:
-        decisions = word_decision_manager.load_word_decisions(work_id, chapter_index)
+        decisions = word_decision_manager.load_word_decisions(work_id, witnesses, chapter_index)
         return jsonify({"status": "success", "decisions": decisions})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -507,10 +524,20 @@ def get_word_decisions(work_id, chapter_index):
 def delete_word_decision(work_id, chapter_index, verse_number, position):
     """
     Supprime une décision de mot.
+    Nécessite les témoins en paramètres (wit1, wit2, wit3).
     """
+    witnesses = [
+        request.args.get('wit1'),
+        request.args.get('wit2'),
+        request.args.get('wit3')
+    ]
+    
+    if not all(witnesses):
+        return jsonify({"status": "error", "message": "Les 3 témoins sont requis (wit1, wit2, wit3)"}), 400
+    
     try:
         success = word_decision_manager.delete_word_decision(
-            work_id, chapter_index, verse_number, position
+            work_id, witnesses, chapter_index, verse_number, position
         )
         if success:
             return jsonify({"status": "success"})
@@ -520,13 +547,45 @@ def delete_word_decision(work_id, chapter_index, verse_number, position):
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route('/api/word-decisions/configuration/<work_id>', methods=['GET'])
+def get_word_decisions_configuration(work_id):
+    """
+    Récupère la configuration actuelle (témoins, chapitres exclus).
+    Nécessite les témoins en paramètres (wit1, wit2, wit3).
+    """
+    witnesses = [
+        request.args.get('wit1'),
+        request.args.get('wit2'),
+        request.args.get('wit3')
+    ]
+    
+    if not all(witnesses):
+        return jsonify({"status": "error", "message": "Les 3 témoins sont requis"}), 400
+    
+    try:
+        config = word_decision_manager.get_configuration(work_id, witnesses)
+        return jsonify({"status": "success", "configuration": config})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route('/api/count-decisions/<work_id>', methods=['GET'])
 def count_decisions(work_id):
     """
-    Compte le nombre total de décisions pour une œuvre.
+    Compte le nombre total de décisions pour une œuvre + témoins.
+    Nécessite les témoins en paramètres (wit1, wit2, wit3).
     """
+    witnesses = [
+        request.args.get('wit1'),
+        request.args.get('wit2'),
+        request.args.get('wit3')
+    ]
+    
+    if not all(witnesses):
+        return jsonify({"status": "error", "message": "Les 3 témoins sont requis"}), 400
+    
     try:
-        count = word_decision_manager.count_all_decisions(work_id)
+        count = word_decision_manager.count_all_decisions(work_id, witnesses)
         return jsonify({"status": "success", "count": count})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -535,10 +594,20 @@ def count_decisions(work_id):
 @app.route('/api/delete-all-decisions/<work_id>', methods=['DELETE'])
 def delete_all_decisions(work_id):
     """
-    Supprime toutes les décisions pour une œuvre.
+    Supprime toutes les décisions pour une œuvre + témoins.
+    Nécessite les témoins en paramètres (wit1, wit2, wit3).
     """
+    witnesses = [
+        request.args.get('wit1'),
+        request.args.get('wit2'),
+        request.args.get('wit3')
+    ]
+    
+    if not all(witnesses):
+        return jsonify({"status": "error", "message": "Les 3 témoins sont requis"}), 400
+    
     try:
-        deleted = word_decision_manager.delete_all_decisions(work_id)
+        deleted = word_decision_manager.delete_all_decisions(work_id, witnesses)
         return jsonify({"status": "success", "deleted": deleted})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -555,6 +624,7 @@ def export_all_decisions():
         - valid_chapters: Liste des chapitres validés avec leur numéro normalisé
           [{index: 0, label: "Chapitre 1"}, ...]
         - witness_names: Liste des noms des témoins
+        - witnesses: Liste des IDs des témoins [wit1, wit2, wit3]
     
     Returns:
         Liste de toutes les variantes conservées avec le numéro de chapitre normalisé
@@ -564,9 +634,13 @@ def export_all_decisions():
         work_id = data.get('work_id')
         valid_chapters = data.get('valid_chapters', [])
         witness_names = data.get('witness_names', ['Témoin 1', 'Témoin 2', 'Témoin 3'])
+        witnesses = data.get('witnesses', [])
         
         if not work_id:
             return jsonify({"status": "error", "message": "work_id requis"}), 400
+        
+        if not witnesses or len(witnesses) != 3:
+            return jsonify({"status": "error", "message": "3 témoins requis"}), 400
         
         all_decisions = []
         
@@ -575,8 +649,8 @@ def export_all_decisions():
             normalized_chapter = chapter.get('index', 0) + 1
             original_index = chapter.get('index', 0)
             
-            # Charger les décisions de mots pour ce chapitre
-            decisions = word_decision_manager.load_word_decisions(work_id, original_index)
+            # Charger les décisions de mots pour ce chapitre avec les témoins
+            decisions = word_decision_manager.load_word_decisions(work_id, witnesses, original_index)
             
             # Filtrer les décisions "conserver"
             conserved = [d for d in decisions if d.get('action') == 'conserver']
