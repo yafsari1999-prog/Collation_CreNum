@@ -28,3 +28,7 @@ yarn-error.log
 # Fichiers temporaires
 *.tmp
 *.log
+
+# Données locales et tests
+data/works.json
+data/input/test/
