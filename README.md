@@ -81,6 +81,14 @@ Ce projet s'inspire des travaux de recherche du projet CreNum et utilise :
 Nous remercions l'équipe du projet CreNum pour leur accompagnement et leurs retours précieux.
 
 ---
+## Utilisation de l'IA
+Dans le cadre de ce projet, l’IA a été utilisée comme assistant pour : 
+
+Correction grammaticale et orthographique
+Debuggage du code
+Suggestion de cas de test
+
+---
 
 ## Équipe
 
